@@ -110,6 +110,14 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
+      <Route path="/integrations">
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <Integrations />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
       <Route component={NotFound} />
     </Switch>
   );
