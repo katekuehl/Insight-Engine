@@ -54,8 +54,14 @@ export async function registerRoutes(
         user = await storage.getUserByEmail(email);
       }
       
+      // If user doesn't exist, create them without an organization
+      // They can be added to an organization later via invite or admin
       if (!user) {
-        return res.status(404).json({ error: "User not found. Please register first." });
+        user = await storage.createUser({
+          email,
+          supabaseUserId,
+          role: "member",
+        });
       }
       
       if (!user.supabaseUserId && supabaseUserId) {
