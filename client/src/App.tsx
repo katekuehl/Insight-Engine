@@ -21,6 +21,7 @@ import Team from "@/pages/team";
 import Billing from "@/pages/billing";
 import Calculator from "@/pages/calculator";
 import Admin from "@/pages/admin";
+import AdminLogin from "@/pages/admin-login";
 import Integrations from "@/pages/integrations";
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
@@ -53,6 +54,7 @@ function Router() {
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/accept-invite" component={AcceptInvite} />
+      <Route path="/admin-login" component={AdminLogin} />
       
       <Route path="/dashboard">
         <ProtectedRoute>

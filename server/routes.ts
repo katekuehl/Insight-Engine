@@ -570,6 +570,303 @@ export async function registerRoutes(
     }
   });
 
+  // Enhanced org creation with primary contact email and invite
+  app.post("/api/admin/organizations/with-invite", async (req, res) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const { name, primaryContactEmail, subscriptionPlan } = req.body;
+      
+      if (!name || !primaryContactEmail) {
+        return res.status(400).json({ error: "Name and primary contact email are required" });
+      }
+      
+      // Create organization with primary contact info
+      const org = await storage.createOrganization({
+        name,
+        primaryContactEmail,
+        subscriptionPlan: subscriptionPlan || "free",
+      });
+      
+      // Create setup invite for primary contact
+      const token = randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // 14 days
+      
+      const invite = await storage.createInvite({
+        token,
+        organizationId: org.id,
+        invitedEmail: primaryContactEmail,
+        role: "admin",
+        isOrgSetupInvite: true,
+        createdBySuperAdmin: true,
+        expiresAt,
+      });
+      
+      // Send setup email
+      const inviteLink = `${req.headers.origin}/accept-invite?token=${token}`;
+      await sendInviteEmail(primaryContactEmail, "Platform Admin", org.name, inviteLink);
+      
+      res.json({ organization: org, invite });
+    } catch (error) {
+      console.error("Create org with invite error:", error);
+      res.status(500).json({ error: "Failed to create organization" });
+    }
+  });
+
+  // Get users for a specific organization (admin view)
+  app.get("/api/admin/organizations/:orgId/users", async (req, res) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const members = await storage.getOrganizationMembers(req.params.orgId);
+      res.json(members);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch organization users" });
+    }
+  });
+
+  // Add user to an organization (admin)
+  app.post("/api/admin/organizations/:orgId/users", async (req, res) => {
+    try {
+      const adminUserId = req.headers["x-user-id"] as string;
+      if (!adminUserId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const adminUser = await storage.getUser(adminUserId);
+      if (!adminUser?.isSuperAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const { email, role } = req.body;
+      const orgId = req.params.orgId;
+      
+      // Check if org exists
+      const org = await storage.getOrganization(orgId);
+      if (!org) {
+        return res.status(404).json({ error: "Organization not found" });
+      }
+      
+      // Check if user already exists
+      let targetUser = await storage.getUserByEmail(email);
+      
+      if (targetUser) {
+        // Update existing user's organization
+        targetUser = await storage.updateUser(targetUser.id, {
+          organizationId: orgId,
+          role: role || "member",
+        });
+        return res.json({ user: targetUser, created: false });
+      } else {
+        // Create invite for new user
+        const token = randomBytes(32).toString("hex");
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        
+        const invite = await storage.createInvite({
+          token,
+          organizationId: orgId,
+          invitedEmail: email,
+          role: role || "member",
+          createdBySuperAdmin: true,
+          expiresAt,
+        });
+        
+        const inviteLink = `${req.headers.origin}/accept-invite?token=${token}`;
+        await sendInviteEmail(email, "Platform Admin", org.name, inviteLink);
+        
+        return res.json({ invite, created: true });
+      }
+    } catch (error) {
+      console.error("Add user to org error:", error);
+      res.status(500).json({ error: "Failed to add user to organization" });
+    }
+  });
+
+  // Start impersonation - view as organization
+  app.post("/api/admin/impersonate/start", async (req, res) => {
+    try {
+      const adminUserId = req.headers["x-user-id"] as string;
+      if (!adminUserId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const adminUser = await storage.getUser(adminUserId);
+      if (!adminUser?.isSuperAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const { targetOrgId, reason } = req.body;
+      
+      // Check for existing active impersonation
+      const existing = await storage.getActiveImpersonation(adminUserId);
+      if (existing) {
+        return res.status(400).json({ 
+          error: "Already impersonating an organization. End current session first.",
+          activeImpersonation: existing,
+        });
+      }
+      
+      // Verify org exists
+      const org = await storage.getOrganization(targetOrgId);
+      if (!org) {
+        return res.status(404).json({ error: "Organization not found" });
+      }
+      
+      // Create impersonation log
+      const log = await storage.createImpersonationLog({
+        superAdminId: adminUserId,
+        targetOrgId,
+        reason,
+      });
+      
+      res.json({ 
+        impersonation: log,
+        organization: org,
+        message: "Impersonation started. You are now viewing as this organization.",
+      });
+    } catch (error) {
+      console.error("Start impersonation error:", error);
+      res.status(500).json({ error: "Failed to start impersonation" });
+    }
+  });
+
+  // End impersonation
+  app.post("/api/admin/impersonate/end", async (req, res) => {
+    try {
+      const adminUserId = req.headers["x-user-id"] as string;
+      if (!adminUserId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const adminUser = await storage.getUser(adminUserId);
+      if (!adminUser?.isSuperAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      // Find active impersonation
+      const active = await storage.getActiveImpersonation(adminUserId);
+      if (!active) {
+        return res.status(400).json({ error: "No active impersonation session" });
+      }
+      
+      // End it
+      const ended = await storage.endImpersonationLog(active.id);
+      
+      res.json({ 
+        impersonation: ended,
+        message: "Impersonation ended. Returning to admin view.",
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to end impersonation" });
+    }
+  });
+
+  // Get current impersonation status
+  app.get("/api/admin/impersonate/status", async (req, res) => {
+    try {
+      const adminUserId = req.headers["x-user-id"] as string;
+      if (!adminUserId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const adminUser = await storage.getUser(adminUserId);
+      if (!adminUser?.isSuperAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const active = await storage.getActiveImpersonation(adminUserId);
+      
+      if (active) {
+        const org = await storage.getOrganization(active.targetOrgId);
+        return res.json({ 
+          isImpersonating: true,
+          impersonation: active,
+          organization: org,
+        });
+      }
+      
+      res.json({ isImpersonating: false });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get impersonation status" });
+    }
+  });
+
+  // Seed test organization with full access
+  app.post("/api/admin/seed-test-org", async (req, res) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const { userEmail } = req.body;
+      
+      // Check if test org already exists
+      const allOrgs = await storage.getAllOrganizations();
+      let testOrg = allOrgs.find(o => o.name === "Test Organization (Full Access)");
+      
+      if (!testOrg) {
+        // Create test organization with full plan
+        testOrg = await storage.createOrganization({
+          name: "Test Organization (Full Access)",
+          primaryContactEmail: userEmail || user.email,
+          subscriptionPlan: "enterprise",
+          isActive: true,
+        });
+        
+        // Create a mock subscription for full access
+        await storage.createSubscription({
+          organizationId: testOrg.id,
+          planType: "enterprise",
+          isActive: true,
+          currentPeriodEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
+        });
+      }
+      
+      // Add the specified user (or current admin) to the test org
+      const targetEmail = userEmail || user.email;
+      let targetUser = await storage.getUserByEmail(targetEmail);
+      
+      if (targetUser) {
+        // Update their org association (keep super admin status)
+        targetUser = await storage.updateUser(targetUser.id, {
+          organizationId: testOrg.id,
+          role: "admin",
+        });
+      }
+      
+      res.json({ 
+        organization: testOrg,
+        user: targetUser,
+        message: `Test organization ready. ${targetEmail} has been added as admin.`,
+      });
+    } catch (error) {
+      console.error("Seed test org error:", error);
+      res.status(500).json({ error: "Failed to create test organization" });
+    }
+  });
+
   // Integration routes - manage platform connections per organization
   app.get("/api/organization/:orgId/integrations", async (req, res) => {
     try {
