@@ -39,4 +39,10 @@ args = "npm run dev"
 waitForPort = 5000
 
 [agent]
-integrations = ["javascript_google_analytics:1.0.0"]
+integrations = ["javascript_google_analytics:1.0.0", "javascript_stripe:1.0.0"]
+
+[userenv]
+
+[userenv.shared]
+VITE_SUPABASE_URL = "https://xbrpneeephulmsccjidf.supabase.co"
+VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhicnBuZWVlcGh1bG1zY2NqaWRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU4NTUzMzQsImV4cCI6MjA4MTQzMTMzNH0.j3By5Jho5h6_6EqI1Iu91FE2NYrm4CvPGMKO81ykfZY"
