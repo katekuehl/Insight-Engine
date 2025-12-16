@@ -1,88 +1,97 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth-context";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, Users, Activity, TrendingDown, Clock, Loader2, AlertCircle } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
-import type { AnalyticsSnapshot } from "@shared/schema";
+import { BarChart3, Users, Activity, TrendingDown, Clock, Loader2, AlertCircle, RefreshCw, Plug } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from "recharts";
+import { Link } from "wouter";
 
-const CHART_COLORS = ["hsl(217, 91%, 48%)", "hsl(198, 93%, 32%)", "hsl(142, 76%, 28%)", "hsl(280, 87%, 35%)", "hsl(24, 94%, 38%)"];
+type GA4Report = {
+  summary: {
+    sessions: number;
+    users: number;
+    pageviews: number;
+    bounceRate: number;
+    avgSessionDuration: number;
+    newUsers: number;
+  };
+  daily: {
+    date: string;
+    sessions: number;
+    users: number;
+    pageviews: number;
+  }[];
+  topPages: { page: string; views: number; users: number }[];
+  topSources: { source: string; sessions: number; users: number }[];
+  isSimulated: boolean;
+  message?: string;
+  error?: string;
+};
 
-function generateMockData(days: number) {
-  const data = [];
-  const now = new Date();
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - i);
-    data.push({
-      date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      users: Math.floor(Math.random() * 500) + 100,
-      sessions: Math.floor(Math.random() * 800) + 200,
-    });
+function formatDate(dateStr: string) {
+  if (dateStr.length === 8) {
+    const year = dateStr.slice(0, 4);
+    const month = dateStr.slice(4, 6);
+    const day = dateStr.slice(6, 8);
+    return new Date(`${year}-${month}-${day}`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
   }
-  return data;
+  return dateStr;
 }
 
-const mockPageData = [
-  { name: "Home", views: 4200 },
-  { name: "Products", views: 3100 },
-  { name: "About", views: 2400 },
-  { name: "Contact", views: 1800 },
-  { name: "Blog", views: 1200 },
-];
+function formatDuration(seconds: number) {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}m ${secs}s`;
+}
 
 export default function Analytics() {
   const { organization } = useAuth();
   const [dateRange, setDateRange] = useState("30");
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasData, setHasData] = useState(false);
 
-  const { data: snapshots = [] } = useQuery<AnalyticsSnapshot[]>({
-    queryKey: ["/api/organization", organization?.id, "analytics"],
+  const { data, isLoading, refetch, isRefetching } = useQuery<GA4Report>({
+    queryKey: [`/api/organization/${organization?.id}/metrics/analytics`, { days: dateRange }],
     enabled: !!organization?.id,
   });
 
-  const chartData = generateMockData(parseInt(dateRange));
-  
-  const totalUsers = chartData.reduce((sum, d) => sum + d.users, 0);
-  const totalSessions = chartData.reduce((sum, d) => sum + d.sessions, 0);
-  const avgBounceRate = 42;
-  const avgSessionDuration = 185;
+  const chartData = data?.daily.map(d => ({
+    ...d,
+    date: formatDate(d.date),
+  })) || [];
 
-  const handleFetchData = async () => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setHasData(true);
-    setIsLoading(false);
-  };
+  const topPagesData = data?.topPages.slice(0, 5).map(p => ({
+    name: p.page.length > 20 ? p.page.slice(0, 20) + "..." : p.page,
+    views: p.views,
+    users: p.users,
+  })) || [];
 
   const stats = [
     {
       title: "Total Users",
-      value: hasData ? totalUsers.toLocaleString() : "—",
+      value: data ? data.summary.users.toLocaleString() : "---",
       description: `Last ${dateRange} days`,
       icon: Users,
       color: "text-blue-600",
     },
     {
       title: "Total Sessions",
-      value: hasData ? totalSessions.toLocaleString() : "—",
+      value: data ? data.summary.sessions.toLocaleString() : "---",
       description: `Last ${dateRange} days`,
       icon: Activity,
       color: "text-green-600",
     },
     {
       title: "Bounce Rate",
-      value: hasData ? `${avgBounceRate}%` : "—",
+      value: data ? `${data.summary.bounceRate.toFixed(1)}%` : "---",
       description: "Average",
       icon: TrendingDown,
       color: "text-orange-600",
     },
     {
       title: "Avg. Session",
-      value: hasData ? `${Math.floor(avgSessionDuration / 60)}m ${avgSessionDuration % 60}s` : "—",
+      value: data ? formatDuration(data.summary.avgSessionDuration) : "---",
       description: "Duration",
       icon: Clock,
       color: "text-purple-600",
@@ -110,24 +119,59 @@ export default function Analytics() {
             </SelectContent>
           </Select>
           <Button 
-            onClick={handleFetchData} 
-            disabled={isLoading}
-            data-testid="button-fetch-data"
+            onClick={() => refetch()} 
+            disabled={isLoading || isRefetching}
+            variant="outline"
+            data-testid="button-refresh-data"
           >
-            {isLoading ? (
+            {isLoading || isRefetching ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Fetching...
+                Loading...
               </>
             ) : (
               <>
-                <BarChart3 className="mr-2 h-4 w-4" />
-                Fetch Data
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Refresh
               </>
             )}
           </Button>
         </div>
       </div>
+
+      {data?.isSimulated && (
+        <Card className="border-amber-500/50 bg-amber-500/5">
+          <CardContent className="flex items-center justify-between gap-4 p-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-600" />
+              <div>
+                <p className="font-medium text-amber-700 dark:text-amber-400">Showing Demo Data</p>
+                <p className="text-sm text-muted-foreground">
+                  {data.message || data.error || "Connect Google Analytics 4 to see your real data."}
+                </p>
+              </div>
+            </div>
+            <Link href="/integrations">
+              <Button variant="outline" data-testid="button-connect-ga4">
+                <Plug className="h-4 w-4 mr-2" />
+                Connect GA4
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
+      {data && !data.isSimulated && (
+        <div className="flex items-center gap-2">
+          <Badge variant="default" className="bg-green-500">
+            <Activity className="w-3 h-3 mr-1" />
+            Live Data
+          </Badge>
+          <span className="text-sm text-muted-foreground">
+            Showing real data from your Google Analytics 4 property
+          </span>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat, index) => (
@@ -140,7 +184,7 @@ export default function Analytics() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold font-mono" data-testid={`stat-${stat.title.toLowerCase().replace(/[. ]/g, "-")}`}>
-                {stat.value}
+                {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stat.value}
               </div>
               <p className="text-xs text-muted-foreground">
                 {stat.description}
@@ -150,33 +194,21 @@ export default function Analytics() {
         ))}
       </div>
 
-      {!hasData && !isLoading && (
+      {isLoading ? (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-              <AlertCircle className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2" data-testid="text-no-data">No Data Available</h3>
-            <p className="text-muted-foreground text-center max-w-md mb-4">
-              Click "Fetch Data" to load your Google Analytics data. Make sure your GA4 property is connected.
-            </p>
-            <Button onClick={handleFetchData} data-testid="button-fetch-data-empty">
-              <BarChart3 className="mr-2 h-4 w-4" />
-              Fetch Google Analytics Data
-            </Button>
+          <CardContent className="flex items-center justify-center py-24">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </CardContent>
         </Card>
-      )}
-
-      {hasData && (
+      ) : data ? (
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>User Growth</CardTitle>
-              <CardDescription>Daily active users over time</CardDescription>
+              <CardTitle>Traffic Overview</CardTitle>
+              <CardDescription>Users and sessions over time</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-80" data-testid="chart-user-growth">
+              <div className="h-80" data-testid="chart-traffic">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -196,12 +228,14 @@ export default function Analytics() {
                         borderRadius: "6px",
                       }}
                     />
+                    <Legend />
                     <Line 
                       type="monotone" 
                       dataKey="users" 
                       stroke="hsl(217, 91%, 48%)" 
                       strokeWidth={2}
                       dot={false}
+                      name="Users"
                     />
                     <Line 
                       type="monotone" 
@@ -209,6 +243,7 @@ export default function Analytics() {
                       stroke="hsl(142, 76%, 28%)" 
                       strokeWidth={2}
                       dot={false}
+                      name="Sessions"
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -219,27 +254,20 @@ export default function Analytics() {
           <Card>
             <CardHeader>
               <CardTitle>Top Pages</CardTitle>
-              <CardDescription>Most viewed pages by page views</CardDescription>
+              <CardDescription>Most viewed pages by pageviews</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-80" data-testid="chart-top-pages">
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={mockPageData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={2}
-                      dataKey="views"
-                      nameKey="name"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {mockPageData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                      ))}
-                    </Pie>
+                  <BarChart data={topPagesData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis type="number" tick={{ fontSize: 12 }} />
+                    <YAxis 
+                      type="category" 
+                      dataKey="name" 
+                      tick={{ fontSize: 11 }} 
+                      width={100}
+                    />
                     <Tooltip 
                       contentStyle={{ 
                         backgroundColor: "hsl(var(--card))",
@@ -247,18 +275,40 @@ export default function Analytics() {
                         borderRadius: "6px",
                       }}
                     />
-                    <Legend />
-                  </PieChart>
+                    <Bar dataKey="views" fill="hsl(217, 91%, 48%)" name="Views" />
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
-        </div>
-      )}
 
-      {hasData && (
-        <p className="text-xs text-muted-foreground text-center" data-testid="text-data-freshness">
-          Data refreshed just now. Using simulated data for demonstration.
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Traffic Sources</CardTitle>
+              <CardDescription>Where your visitors are coming from</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                {data.topSources.slice(0, 5).map((source, index) => (
+                  <div key={index} className="p-4 rounded-lg bg-muted/50">
+                    <p className="font-medium truncate" title={source.source}>
+                      {source.source || "(direct)"}
+                    </p>
+                    <p className="text-2xl font-bold mt-1">{source.sessions.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">sessions</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+
+      {data && (
+        <p className="text-xs text-muted-foreground text-center" data-testid="text-data-status">
+          {data.isSimulated 
+            ? "Showing simulated data. Connect Google Analytics 4 in Integrations for real metrics."
+            : "Data refreshed just now. Showing live data from your GA4 property."}
         </p>
       )}
     </div>

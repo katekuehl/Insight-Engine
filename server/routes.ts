@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { sendWelcomeEmail, sendInviteEmail } from "./resend";
 import { randomBytes } from "crypto";
 import Stripe from "stripe";
+import { fetchGA4Data, generateSimulatedGA4Data, type GA4Report } from "./services/ga4";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripe = stripeSecretKey 
@@ -1010,8 +1011,58 @@ export async function registerRoutes(
 
   app.get("/api/organization/:orgId/metrics/analytics", async (req, res) => {
     try {
-      const metrics = await storage.getMetricsAnalytics(req.params.orgId);
-      res.json(metrics);
+      const { days = "30" } = req.query;
+      const numDays = parseInt(days as string) || 30;
+      const orgId = req.params.orgId;
+
+      // Check if org has a GA4 integration
+      const integration = await storage.getIntegrationByPlatform(orgId, "google_analytics");
+      
+      if (integration && integration.metadata) {
+        try {
+          // Calculate date range
+          const endDate = new Date();
+          const startDate = new Date();
+          startDate.setDate(startDate.getDate() - numDays);
+          
+          const data = await fetchGA4Data(
+            integration,
+            startDate.toISOString().split("T")[0],
+            endDate.toISOString().split("T")[0]
+          );
+          
+          // Update last sync time
+          await storage.updateIntegration(integration.id, {
+            lastSyncAt: new Date(),
+            lastSyncError: null,
+          });
+          
+          return res.json({
+            ...data,
+            isSimulated: false,
+            integrationId: integration.id,
+          });
+        } catch (gaError: any) {
+          console.error("GA4 fetch error:", gaError);
+          // Update integration with error
+          await storage.updateIntegration(integration.id, {
+            lastSyncError: gaError.message || "Failed to fetch data",
+          });
+          // Fall back to simulated data
+          return res.json({
+            ...generateSimulatedGA4Data(numDays),
+            isSimulated: true,
+            error: gaError.message,
+          });
+        }
+      }
+      
+      // No integration - return simulated data
+      res.json({
+        ...generateSimulatedGA4Data(numDays),
+        isSimulated: true,
+        message: "Connect Google Analytics 4 in Integrations to see real data",
+      });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch analytics metrics" });
     }
