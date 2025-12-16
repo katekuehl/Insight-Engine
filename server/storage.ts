@@ -1,9 +1,10 @@
 import { db } from "./db";
-import { eq, and, desc, isNull } from "drizzle-orm";
+import { eq, and, desc, isNull, inArray } from "drizzle-orm";
 import {
   users, organizations, invites, subscriptions, analyticsSnapshots,
   integrations, syncJobs, metricsAds, metricsAnalytics, metricsCrm,
   impersonationLogs,
+  dags, dagTasks, dagRuns, taskInstances, xcomData, analysisOutputs,
   type User, type InsertUser,
   type Organization, type InsertOrganization,
   type Invite, type InsertInvite,
@@ -15,6 +16,12 @@ import {
   type MetricsAnalytics, type InsertMetricsAnalytics,
   type MetricsCrm, type InsertMetricsCrm,
   type ImpersonationLog, type InsertImpersonationLog,
+  type Dag, type InsertDag,
+  type DagTask, type InsertDagTask,
+  type DagRun, type InsertDagRun,
+  type TaskInstance, type InsertTaskInstance,
+  type XcomData, type InsertXcomData,
+  type AnalysisOutput, type InsertAnalysisOutput,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -76,6 +83,45 @@ export interface IStorage {
   endImpersonationLog(id: string): Promise<ImpersonationLog | undefined>;
   getActiveImpersonation(superAdminId: string): Promise<ImpersonationLog | undefined>;
   getImpersonationLogs(superAdminId?: string): Promise<ImpersonationLog[]>;
+  
+  // DAG methods
+  getDag(id: string): Promise<Dag | undefined>;
+  getDagByDagId(dagId: string): Promise<Dag | undefined>;
+  getAllDags(): Promise<Dag[]>;
+  createDag(dag: InsertDag): Promise<Dag>;
+  updateDag(id: string, data: Partial<InsertDag>): Promise<Dag | undefined>;
+  
+  // DAG Task methods
+  getDagTask(id: string): Promise<DagTask | undefined>;
+  getDagTasksByDagId(dagId: string): Promise<DagTask[]>;
+  createDagTask(task: InsertDagTask): Promise<DagTask>;
+  createDagTasks(tasks: InsertDagTask[]): Promise<DagTask[]>;
+  
+  // DAG Run methods
+  getDagRun(id: string): Promise<DagRun | undefined>;
+  getDagRunsByOrganization(organizationId: string, limit?: number): Promise<DagRun[]>;
+  getDagRunsByDag(dagId: string, organizationId: string, limit?: number): Promise<DagRun[]>;
+  createDagRun(run: InsertDagRun): Promise<DagRun>;
+  updateDagRun(id: string, data: Partial<InsertDagRun>): Promise<DagRun | undefined>;
+  
+  // Task Instance methods
+  getTaskInstance(id: string): Promise<TaskInstance | undefined>;
+  getTaskInstancesByDagRun(dagRunId: string): Promise<TaskInstance[]>;
+  getTaskInstancesByStatus(dagRunId: string, status: string): Promise<TaskInstance[]>;
+  createTaskInstance(instance: InsertTaskInstance): Promise<TaskInstance>;
+  createTaskInstances(instances: InsertTaskInstance[]): Promise<TaskInstance[]>;
+  updateTaskInstance(id: string, data: Partial<InsertTaskInstance>): Promise<TaskInstance | undefined>;
+  
+  // XCom methods
+  getXcomData(dagRunId: string, key?: string): Promise<XcomData[]>;
+  getXcomDataByTaskInstance(taskInstanceId: string): Promise<XcomData[]>;
+  createXcomData(data: InsertXcomData): Promise<XcomData>;
+  
+  // Analysis Output methods
+  getAnalysisOutput(id: string): Promise<AnalysisOutput | undefined>;
+  getAnalysisOutputsByOrganization(organizationId: string, limit?: number): Promise<AnalysisOutput[]>;
+  getAnalysisOutputByDagRun(dagRunId: string): Promise<AnalysisOutput | undefined>;
+  createAnalysisOutput(output: InsertAnalysisOutput): Promise<AnalysisOutput>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -323,6 +369,152 @@ export class DatabaseStorage implements IStorage {
     }
     return db.select().from(impersonationLogs)
       .orderBy(desc(impersonationLogs.startedAt));
+  }
+
+  // DAG methods
+  async getDag(id: string): Promise<Dag | undefined> {
+    const [dag] = await db.select().from(dags).where(eq(dags.id, id));
+    return dag;
+  }
+
+  async getDagByDagId(dagId: string): Promise<Dag | undefined> {
+    const [dag] = await db.select().from(dags).where(eq(dags.dagId, dagId));
+    return dag;
+  }
+
+  async getAllDags(): Promise<Dag[]> {
+    return db.select().from(dags).orderBy(dags.dagId);
+  }
+
+  async createDag(insertDag: InsertDag): Promise<Dag> {
+    const [dag] = await db.insert(dags).values(insertDag).returning();
+    return dag;
+  }
+
+  async updateDag(id: string, data: Partial<InsertDag>): Promise<Dag | undefined> {
+    const [dag] = await db.update(dags).set({ ...data, updatedAt: new Date() }).where(eq(dags.id, id)).returning();
+    return dag;
+  }
+
+  // DAG Task methods
+  async getDagTask(id: string): Promise<DagTask | undefined> {
+    const [task] = await db.select().from(dagTasks).where(eq(dagTasks.id, id));
+    return task;
+  }
+
+  async getDagTasksByDagId(dagId: string): Promise<DagTask[]> {
+    return db.select().from(dagTasks).where(eq(dagTasks.dagId, dagId));
+  }
+
+  async createDagTask(insertTask: InsertDagTask): Promise<DagTask> {
+    const [task] = await db.insert(dagTasks).values(insertTask).returning();
+    return task;
+  }
+
+  async createDagTasks(insertTasks: InsertDagTask[]): Promise<DagTask[]> {
+    if (insertTasks.length === 0) return [];
+    return db.insert(dagTasks).values(insertTasks).returning();
+  }
+
+  // DAG Run methods
+  async getDagRun(id: string): Promise<DagRun | undefined> {
+    const [run] = await db.select().from(dagRuns).where(eq(dagRuns.id, id));
+    return run;
+  }
+
+  async getDagRunsByOrganization(organizationId: string, limit = 50): Promise<DagRun[]> {
+    return db.select().from(dagRuns)
+      .where(eq(dagRuns.organizationId, organizationId))
+      .orderBy(desc(dagRuns.createdAt))
+      .limit(limit);
+  }
+
+  async getDagRunsByDag(dagId: string, organizationId: string, limit = 50): Promise<DagRun[]> {
+    return db.select().from(dagRuns)
+      .where(and(eq(dagRuns.dagId, dagId), eq(dagRuns.organizationId, organizationId)))
+      .orderBy(desc(dagRuns.createdAt))
+      .limit(limit);
+  }
+
+  async createDagRun(insertRun: InsertDagRun): Promise<DagRun> {
+    const [run] = await db.insert(dagRuns).values(insertRun).returning();
+    return run;
+  }
+
+  async updateDagRun(id: string, data: Partial<InsertDagRun>): Promise<DagRun | undefined> {
+    const [run] = await db.update(dagRuns).set(data).where(eq(dagRuns.id, id)).returning();
+    return run;
+  }
+
+  // Task Instance methods
+  async getTaskInstance(id: string): Promise<TaskInstance | undefined> {
+    const [instance] = await db.select().from(taskInstances).where(eq(taskInstances.id, id));
+    return instance;
+  }
+
+  async getTaskInstancesByDagRun(dagRunId: string): Promise<TaskInstance[]> {
+    return db.select().from(taskInstances).where(eq(taskInstances.dagRunId, dagRunId));
+  }
+
+  async getTaskInstancesByStatus(dagRunId: string, status: string): Promise<TaskInstance[]> {
+    return db.select().from(taskInstances)
+      .where(and(eq(taskInstances.dagRunId, dagRunId), eq(taskInstances.status, status)));
+  }
+
+  async createTaskInstance(insertInstance: InsertTaskInstance): Promise<TaskInstance> {
+    const [instance] = await db.insert(taskInstances).values(insertInstance).returning();
+    return instance;
+  }
+
+  async createTaskInstances(insertInstances: InsertTaskInstance[]): Promise<TaskInstance[]> {
+    if (insertInstances.length === 0) return [];
+    return db.insert(taskInstances).values(insertInstances).returning();
+  }
+
+  async updateTaskInstance(id: string, data: Partial<InsertTaskInstance>): Promise<TaskInstance | undefined> {
+    const [instance] = await db.update(taskInstances).set(data).where(eq(taskInstances.id, id)).returning();
+    return instance;
+  }
+
+  // XCom methods
+  async getXcomData(dagRunId: string, key?: string): Promise<XcomData[]> {
+    if (key) {
+      return db.select().from(xcomData)
+        .where(and(eq(xcomData.dagRunId, dagRunId), eq(xcomData.key, key)));
+    }
+    return db.select().from(xcomData).where(eq(xcomData.dagRunId, dagRunId));
+  }
+
+  async getXcomDataByTaskInstance(taskInstanceId: string): Promise<XcomData[]> {
+    return db.select().from(xcomData).where(eq(xcomData.taskInstanceId, taskInstanceId));
+  }
+
+  async createXcomData(insertData: InsertXcomData): Promise<XcomData> {
+    const [data] = await db.insert(xcomData).values(insertData).returning();
+    return data;
+  }
+
+  // Analysis Output methods
+  async getAnalysisOutput(id: string): Promise<AnalysisOutput | undefined> {
+    const [output] = await db.select().from(analysisOutputs).where(eq(analysisOutputs.id, id));
+    return output;
+  }
+
+  async getAnalysisOutputsByOrganization(organizationId: string, limit = 50): Promise<AnalysisOutput[]> {
+    return db.select().from(analysisOutputs)
+      .where(eq(analysisOutputs.organizationId, organizationId))
+      .orderBy(desc(analysisOutputs.createdAt))
+      .limit(limit);
+  }
+
+  async getAnalysisOutputByDagRun(dagRunId: string): Promise<AnalysisOutput | undefined> {
+    const [output] = await db.select().from(analysisOutputs).where(eq(analysisOutputs.dagRunId, dagRunId));
+    return output;
+  }
+
+  async createAnalysisOutput(insertOutput: InsertAnalysisOutput): Promise<AnalysisOutput> {
+    const [output] = await db.insert(analysisOutputs).values(insertOutput).returning();
+    return output;
   }
 }
 

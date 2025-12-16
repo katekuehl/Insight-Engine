@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { seedDags } from "./orchestration/dag-definitions";
 
 const app = express();
 const httpServer = createServer(app);
@@ -60,6 +61,13 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Seed DAG definitions on startup
+  try {
+    await seedDags();
+  } catch (error) {
+    console.error("Failed to seed DAGs:", error);
+  }
+  
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

@@ -47,6 +47,21 @@ A comprehensive SaaS analytics platform built with React, Express, TypeScript, a
 │   ├── services/
 │   │   └── ga4.ts       # Google Analytics 4 data fetching service
 │   └── index.ts         # Server entry point
+├── server/orchestration/  # DAG orchestration engine
+│   ├── dag-executor.ts    # Airflow-compatible DAG executor with topological sort
+│   └── dag-definitions.ts # Pre-defined DAGs (data_ingestion, relationship_engine)
+├── analytics_service/     # Python FastAPI microservice for analytics
+│   ├── main.py           # FastAPI app with operator endpoints
+│   ├── requirements.txt  # Python dependencies
+│   └── operators/        # Statistical analysis operators
+│       ├── prepare_data.py
+│       ├── descriptive_stats.py
+│       ├── correlation_matrix.py
+│       ├── trend_detection.py
+│       ├── time_series.py
+│       ├── regression_summary.py
+│       ├── decomposition.py
+│       └── aggregation.py
 ├── shared/
 │   └── schema.ts        # Database schema (Drizzle)
 └── design_guidelines.md # UI/UX design specifications
@@ -63,6 +78,14 @@ A comprehensive SaaS analytics platform built with React, Express, TypeScript, a
 - **metricsAds**: Normalized ad platform metrics (spend, impressions, clicks, conversions, ROAS)
 - **metricsAnalytics**: Website analytics metrics from GA4
 - **metricsCrm**: CRM data from HubSpot/Salesforce (contacts, deals, pipeline)
+
+### Orchestration Schema (Airflow-compatible)
+- **dags**: DAG definitions with schedule, config, and active status
+- **dagTasks**: Task definitions within DAGs with operator type, config, and dependencies
+- **dagRuns**: DAG execution instances scoped to organization
+- **taskInstances**: Individual task executions with status, timing, and error tracking
+- **xcomData**: Cross-communication data between tasks (like Airflow XCom)
+- **analysisOutputs**: Final aggregated analysis results per organization
 
 ## Key Features
 
@@ -162,6 +185,17 @@ The application runs on port 5000 with both frontend and backend served together
 - `GET /api/organization/:orgId/metrics/analytics` - Get website analytics metrics
 - `GET /api/organization/:orgId/metrics/crm` - Get CRM/sales metrics
 
+### Orchestration API Endpoints
+- `GET /api/dags` - List all DAG definitions
+- `GET /api/dags/:dagId` - Get DAG with tasks
+- `POST /api/organization/:orgId/dag-runs` - Trigger a new DAG run
+- `GET /api/organization/:orgId/dag-runs` - List DAG runs for organization
+- `GET /api/organization/:orgId/dag-runs/:runId` - Get DAG run with task instances
+- `GET /api/organization/:orgId/dag-runs/:runId/xcom` - Get XCom data for run
+- `GET /api/organization/:orgId/dag-runs/:runId/xcom/:taskId` - Get specific task XCom
+- `GET /api/organization/:orgId/analysis-outputs` - List analysis outputs
+- `GET /api/organization/:orgId/analysis-outputs/:outputId` - Get specific output
+
 ## Making Yourself a Super Admin
 To access the admin panel, you need to be a super admin. Run this SQL command:
 ```sql
@@ -181,3 +215,14 @@ After running this, log out and log back in to see the Admin Panel in the sideba
   - API endpoints for managing platform connections
   - Integrations UI page (Settings > Integrations)
   - Support for: Google Analytics 4, Google Ads, Meta Ads, HubSpot, Salesforce
+- Added Orchestration Engine (Phase 0 - Data Integration)
+  - Airflow-compatible DAG executor with topological sorting
+  - Data ingestion DAG for pulling from integrations
+  - Relationship Engine DAG with 6 parallel analytical modules
+  - XCom-style cross-task communication
+  - Organization-scoped execution with complete isolation
+- Added Python Analytics Service (Phase 1 - Relationship Engine)
+  - FastAPI microservice at analytics_service/
+  - 6 statistical operators: descriptive stats, correlation matrix, trend detection, time series, regression summary, decomposition
+  - Aggregation operator for combining insights
+  - Generates executive summaries and actionable recommendations

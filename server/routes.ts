@@ -5,6 +5,7 @@ import { sendWelcomeEmail, sendInviteEmail } from "./resend";
 import { randomBytes } from "crypto";
 import Stripe from "stripe";
 import { fetchGA4Data, generateSimulatedGA4Data, type GA4Report } from "./services/ga4";
+import { dagExecutor } from "./orchestration/dag-executor";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripe = stripeSecretKey 
@@ -1074,6 +1075,173 @@ export async function registerRoutes(
       res.json(metrics);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch CRM metrics" });
+    }
+  });
+
+  // ============= ORCHESTRATION API =============
+  
+  // Get all DAG definitions
+  app.get("/api/dags", async (req, res) => {
+    try {
+      const dags = await storage.getAllDags();
+      res.json(dags);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch DAGs" });
+    }
+  });
+  
+  // Get DAG by ID
+  app.get("/api/dags/:dagId", async (req, res) => {
+    try {
+      const dag = await storage.getDagByDagId(req.params.dagId);
+      if (!dag) {
+        return res.status(404).json({ error: "DAG not found" });
+      }
+      
+      const tasks = await storage.getDagTasksByDagId(dag.id);
+      res.json({ ...dag, tasks });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch DAG" });
+    }
+  });
+  
+  // Trigger a DAG run
+  app.post("/api/organization/:orgId/dag-runs", async (req, res) => {
+    try {
+      const { dagId, config, triggeredBy } = req.body;
+      
+      if (!dagId) {
+        return res.status(400).json({ error: "dagId is required" });
+      }
+      
+      const dagRun = await dagExecutor.triggerDag(
+        dagId,
+        req.params.orgId,
+        triggeredBy || "api",
+        config
+      );
+      
+      // Start processing the DAG run asynchronously
+      setImmediate(async () => {
+        try {
+          let result = { completed: false, tasksRun: 0 };
+          while (!result.completed) {
+            result = await dagExecutor.processDagRun(dagRun.id);
+            if (!result.completed) {
+              // Wait a bit before checking again
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
+        } catch (error) {
+          console.error(`Error processing DAG run ${dagRun.id}:`, error);
+        }
+      });
+      
+      res.json(dagRun);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to trigger DAG run" });
+    }
+  });
+  
+  // Get DAG runs for an organization
+  app.get("/api/organization/:orgId/dag-runs", async (req, res) => {
+    try {
+      const dagRuns = await storage.getDagRunsByOrganization(req.params.orgId);
+      res.json(dagRuns);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch DAG runs" });
+    }
+  });
+  
+  // Get specific DAG run with task instances
+  app.get("/api/organization/:orgId/dag-runs/:runId", async (req, res) => {
+    try {
+      const dagRun = await storage.getDagRun(req.params.runId);
+      if (!dagRun || dagRun.organizationId !== req.params.orgId) {
+        return res.status(404).json({ error: "DAG run not found" });
+      }
+      
+      const taskInstances = await storage.getTaskInstancesByDagRun(dagRun.id);
+      const dag = await storage.getDag(dagRun.dagId);
+      const tasks = dag ? await storage.getDagTasksByDagId(dag.id) : [];
+      
+      // Enrich task instances with task details
+      const enrichedInstances = taskInstances.map(instance => {
+        const task = tasks.find(t => t.id === instance.dagTaskId);
+        return {
+          ...instance,
+          taskId: task?.taskId,
+          taskName: task?.displayName,
+          operatorType: task?.operatorType,
+        };
+      });
+      
+      res.json({
+        ...dagRun,
+        dagName: dag?.displayName,
+        taskInstances: enrichedInstances,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch DAG run" });
+    }
+  });
+  
+  // Get XCom data for a DAG run
+  app.get("/api/organization/:orgId/dag-runs/:runId/xcom", async (req, res) => {
+    try {
+      const dagRun = await storage.getDagRun(req.params.runId);
+      if (!dagRun || dagRun.organizationId !== req.params.orgId) {
+        return res.status(404).json({ error: "DAG run not found" });
+      }
+      
+      const xcomData = await storage.getXcomData(dagRun.id);
+      res.json(xcomData);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch XCom data" });
+    }
+  });
+  
+  // Get XCom data for a specific task
+  app.get("/api/organization/:orgId/dag-runs/:runId/xcom/:taskId", async (req, res) => {
+    try {
+      const dagRun = await storage.getDagRun(req.params.runId);
+      if (!dagRun || dagRun.organizationId !== req.params.orgId) {
+        return res.status(404).json({ error: "DAG run not found" });
+      }
+      
+      const xcomData = await storage.getXcomData(dagRun.id);
+      const taskXcom = xcomData.find(x => x.key === req.params.taskId);
+      
+      if (!taskXcom) {
+        return res.status(404).json({ error: "XCom data not found for task" });
+      }
+      
+      res.json(taskXcom);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch XCom data" });
+    }
+  });
+  
+  // Get analysis outputs for an organization
+  app.get("/api/organization/:orgId/analysis-outputs", async (req, res) => {
+    try {
+      const outputs = await storage.getAnalysisOutputsByOrganization(req.params.orgId);
+      res.json(outputs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch analysis outputs" });
+    }
+  });
+  
+  // Get specific analysis output
+  app.get("/api/organization/:orgId/analysis-outputs/:outputId", async (req, res) => {
+    try {
+      const output = await storage.getAnalysisOutput(req.params.outputId);
+      if (!output || output.organizationId !== req.params.orgId) {
+        return res.status(404).json({ error: "Analysis output not found" });
+      }
+      res.json(output);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch analysis output" });
     }
   });
 

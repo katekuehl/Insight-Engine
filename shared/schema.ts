@@ -152,6 +152,120 @@ export const metricsAnalytics = pgTable("metrics_analytics", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// ============================================
+// ORCHESTRATION TABLES (Airflow-compatible)
+// ============================================
+
+// DAG statuses
+export const DAG_STATUSES = ["active", "paused", "archived"] as const;
+export type DagStatus = typeof DAG_STATUSES[number];
+
+// Task/Run statuses
+export const TASK_STATUSES = ["pending", "queued", "running", "success", "failed", "skipped", "upstream_failed"] as const;
+export type TaskStatus = typeof TASK_STATUSES[number];
+
+// Operator types for tasks
+export const OPERATOR_TYPES = [
+  "python_http",           // Calls Python FastAPI endpoint
+  "data_ingestion",        // Pulls data from integrations
+  "descriptive_stats",     // Descriptive statistics module
+  "correlation_matrix",    // Correlation analysis module
+  "trend_detection",       // Trend detection module
+  "time_series",           // Time series modeling module
+  "regression_summary",    // Regression analysis module
+  "decomposition",         // PCA/STL decomposition module
+  "aggregation",           // Combines outputs from multiple tasks
+  "completion_marker",     // Marks pipeline as complete
+] as const;
+export type OperatorType = typeof OPERATOR_TYPES[number];
+
+// DAG definitions - pipeline templates
+export const dags = pgTable("dags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  dagId: text("dag_id").notNull().unique(), // e.g., "data_ingestion", "relationship_engine"
+  displayName: text("display_name").notNull(),
+  description: text("description"),
+  schedule: text("schedule"), // Cron expression or null for manual trigger
+  isActive: boolean("is_active").default(true),
+  defaultConfig: jsonb("default_config"), // Default parameters for the DAG
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// DAG tasks - individual tasks within a DAG with dependencies
+export const dagTasks = pgTable("dag_tasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  dagId: varchar("dag_id").references(() => dags.id).notNull(),
+  taskId: text("task_id").notNull(), // e.g., "descriptive_stats", "correlation_matrix"
+  displayName: text("display_name").notNull(),
+  operatorType: text("operator_type").notNull(), // Which operator to use
+  operatorConfig: jsonb("operator_config"), // Operator-specific configuration
+  upstreamTaskIds: text("upstream_task_ids").array(), // Tasks that must complete before this one
+  retryCount: integer("retry_count").default(3),
+  retryDelaySeconds: integer("retry_delay_seconds").default(60),
+  timeoutSeconds: integer("timeout_seconds").default(3600), // 1 hour default
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// DAG runs - execution instances of a DAG for an organization
+export const dagRuns = pgTable("dag_runs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  dagId: varchar("dag_id").references(() => dags.id).notNull(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  status: text("status").default("pending"), // pending, running, success, failed
+  triggeredBy: text("triggered_by"), // "scheduled", "manual", or user ID
+  config: jsonb("config"), // Runtime configuration/parameters
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Task instances - individual task executions within a DAG run
+export const taskInstances = pgTable("task_instances", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  dagRunId: varchar("dag_run_id").references(() => dagRuns.id).notNull(),
+  dagTaskId: varchar("dag_task_id").references(() => dagTasks.id).notNull(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  status: text("status").default("pending"),
+  attemptNumber: integer("attempt_number").default(1),
+  queuedAt: timestamp("queued_at"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  duration: integer("duration"), // In milliseconds
+  errorMessage: text("error_message"),
+  logs: text("logs"), // Execution logs
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// XCom data - cross-communication between tasks (Airflow pattern)
+export const xcomData = pgTable("xcom_data", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  dagRunId: varchar("dag_run_id").references(() => dagRuns.id).notNull(),
+  taskInstanceId: varchar("task_instance_id").references(() => taskInstances.id).notNull(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  key: text("key").notNull(), // e.g., "summary_stats", "correlation_matrix"
+  value: jsonb("value").notNull(), // The actual data passed between tasks
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Aggregated analysis outputs - final results from Relationship Engine
+export const analysisOutputs = pgTable("analysis_outputs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  dagRunId: varchar("dag_run_id").references(() => dagRuns.id).notNull(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  outputType: text("output_type").notNull(), // e.g., "relationship_engine", "impact_engine"
+  summaryStats: jsonb("summary_stats"),
+  correlationMatrix: jsonb("correlation_matrix"),
+  trendAnalysis: jsonb("trend_analysis"),
+  timeSeriesModel: jsonb("time_series_model"),
+  regressionSummary: jsonb("regression_summary"),
+  decompositionComponents: jsonb("decomposition_components"),
+  aggregatedInsights: jsonb("aggregated_insights"), // Combined insights
+  dataDateRange: jsonb("data_date_range"), // { start, end }
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // CRM metrics - contacts, deals, pipeline data
 export const metricsCrm = pgTable("metrics_crm", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -227,6 +341,38 @@ export const insertMetricsCrmSchema = createInsertSchema(metricsCrm).omit({
   createdAt: true,
 });
 
+// Orchestration insert schemas
+export const insertDagSchema = createInsertSchema(dags).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertDagTaskSchema = createInsertSchema(dagTasks).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDagRunSchema = createInsertSchema(dagRuns).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTaskInstanceSchema = createInsertSchema(taskInstances).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertXcomDataSchema = createInsertSchema(xcomData).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAnalysisOutputSchema = createInsertSchema(analysisOutputs).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type Organization = typeof organizations.$inferSelect;
 
@@ -259,3 +405,22 @@ export type MetricsAnalytics = typeof metricsAnalytics.$inferSelect;
 
 export type InsertMetricsCrm = z.infer<typeof insertMetricsCrmSchema>;
 export type MetricsCrm = typeof metricsCrm.$inferSelect;
+
+// Orchestration types
+export type InsertDag = z.infer<typeof insertDagSchema>;
+export type Dag = typeof dags.$inferSelect;
+
+export type InsertDagTask = z.infer<typeof insertDagTaskSchema>;
+export type DagTask = typeof dagTasks.$inferSelect;
+
+export type InsertDagRun = z.infer<typeof insertDagRunSchema>;
+export type DagRun = typeof dagRuns.$inferSelect;
+
+export type InsertTaskInstance = z.infer<typeof insertTaskInstanceSchema>;
+export type TaskInstance = typeof taskInstances.$inferSelect;
+
+export type InsertXcomData = z.infer<typeof insertXcomDataSchema>;
+export type XcomData = typeof xcomData.$inferSelect;
+
+export type InsertAnalysisOutput = z.infer<typeof insertAnalysisOutputSchema>;
+export type AnalysisOutput = typeof analysisOutputs.$inferSelect;
