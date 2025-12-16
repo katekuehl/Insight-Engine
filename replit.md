@@ -89,6 +89,15 @@ A comprehensive SaaS analytics platform built with React, Express, TypeScript, a
 - Confidence intervals
 - Line chart projections
 
+### Admin Panel (Platform Administration)
+- Super admin role for platform-wide access
+- View and manage all organizations
+- Create/edit/delete organizations
+- View all platform users
+- Toggle super admin status for users
+- Platform statistics dashboard
+- Accessed via "Admin Panel" in sidebar (only visible to super admins)
+
 ## Environment Variables Required
 - `DATABASE_URL`: PostgreSQL connection string
 - `SUPABASE_URL`: Supabase project URL
@@ -120,9 +129,26 @@ The application runs on port 5000 with both frontend and backend served together
 - `POST /api/stripe/create-portal` - Create billing portal
 - `POST /api/stripe/webhook` - Handle Stripe webhooks
 
+### Admin API Endpoints (require super admin)
+- `GET /api/admin/stats` - Platform statistics
+- `GET /api/admin/organizations` - List all organizations
+- `POST /api/admin/organizations` - Create organization
+- `PATCH /api/admin/organizations/:orgId` - Update organization
+- `DELETE /api/admin/organizations/:orgId` - Delete organization
+- `GET /api/admin/users` - List all users
+- `PATCH /api/admin/users/:userId` - Update user (toggle super admin)
+
+## Making Yourself a Super Admin
+To access the admin panel, you need to be a super admin. Run this SQL command:
+```sql
+UPDATE users SET is_super_admin = true WHERE email = 'your-email@example.com';
+```
+After running this, log out and log back in to see the Admin Panel in the sidebar.
+
 ## Recent Changes
 - Initial implementation of all 5 phases
 - Set up Supabase authentication
 - Integrated Stripe for payments
 - Added Resend for transactional emails
 - Created responsive dashboard with sidebar navigation
+- Added Admin Panel for platform-wide organization and user management

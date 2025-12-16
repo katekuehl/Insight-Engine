@@ -18,6 +18,7 @@ export const users = pgTable("users", {
   supabaseUserId: text("supabase_user_id").unique(),
   organizationId: varchar("organization_id").references(() => organizations.id),
   role: text("role").default("member"),
+  isSuperAdmin: boolean("is_super_admin").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

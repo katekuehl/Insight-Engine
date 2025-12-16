@@ -16,10 +16,13 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, data: Partial<InsertUser>): Promise<User | undefined>;
   deleteUser(id: string): Promise<void>;
+  getAllUsers(): Promise<User[]>;
   
   getOrganization(id: string): Promise<Organization | undefined>;
   createOrganization(org: InsertOrganization): Promise<Organization>;
   updateOrganization(id: string, data: Partial<InsertOrganization>): Promise<Organization | undefined>;
+  deleteOrganization(id: string): Promise<void>;
+  getAllOrganizations(): Promise<Organization[]>;
   
   getOrganizationMembers(organizationId: string): Promise<User[]>;
   
@@ -82,8 +85,24 @@ export class DatabaseStorage implements IStorage {
     return org;
   }
 
+  async deleteOrganization(id: string): Promise<void> {
+    await db.delete(users).where(eq(users.organizationId, id));
+    await db.delete(invites).where(eq(invites.organizationId, id));
+    await db.delete(subscriptions).where(eq(subscriptions.organizationId, id));
+    await db.delete(analyticsSnapshots).where(eq(analyticsSnapshots.organizationId, id));
+    await db.delete(organizations).where(eq(organizations.id, id));
+  }
+
+  async getAllOrganizations(): Promise<Organization[]> {
+    return db.select().from(organizations);
+  }
+
   async getOrganizationMembers(organizationId: string): Promise<User[]> {
     return db.select().from(users).where(eq(users.organizationId, organizationId));
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return db.select().from(users);
   }
 
   async getInvite(token: string): Promise<Invite | undefined> {

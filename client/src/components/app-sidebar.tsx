@@ -1,4 +1,4 @@
-import { LayoutDashboard, BarChart3, Users, CreditCard, Calculator } from "lucide-react";
+import { LayoutDashboard, BarChart3, Users, CreditCard, Calculator, Shield } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import {
   Sidebar,
@@ -44,7 +44,7 @@ const menuItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
-  const { organization } = useAuth();
+  const { organization, user } = useAuth();
 
   return (
     <Sidebar>
@@ -83,6 +83,28 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        
+        {user?.isSuperAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Administration</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === "/admin"}
+                    data-testid="nav-admin"
+                  >
+                    <Link href="/admin">
+                      <Shield />
+                      <span>Admin Panel</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
       <SidebarFooter className="p-4 border-t border-sidebar-border">
         <p className="text-xs text-muted-foreground text-center">

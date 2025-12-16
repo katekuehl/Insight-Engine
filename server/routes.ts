@@ -7,16 +7,8 @@ import Stripe from "stripe";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripe = stripeSecretKey 
-  ? new Stripe(stripeSecretKey, { apiVersion: "2025-05-28.basil" })
+  ? new Stripe(stripeSecretKey, { apiVersion: "2025-11-17.clover" })
   : null;
-
-function requireStripe(res: any): stripe is Stripe {
-  if (!stripe) {
-    res.status(503).json({ error: "Payment service not configured. Please set up Stripe API keys." });
-    return false;
-  }
-  return true;
-}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -340,6 +332,7 @@ export async function registerRoutes(
         case "customer.subscription.updated": {
           const subscription = event.data.object as Stripe.Subscription;
           const customerId = subscription.customer as string;
+          const periodEnd = (subscription as any).current_period_end as number;
           
           const customer = await stripe.customers.retrieve(customerId);
           const organizationId = (customer as Stripe.Customer).metadata?.organizationId;
@@ -352,7 +345,7 @@ export async function registerRoutes(
               await storage.updateSubscription(existingSub.id, {
                 isActive: subscription.status === "active",
                 planType,
-                currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+                currentPeriodEnd: new Date(periodEnd * 1000),
               });
             } else {
               await storage.createSubscription({
@@ -360,7 +353,7 @@ export async function registerRoutes(
                 stripeSubscriptionId: subscription.id,
                 planType,
                 isActive: subscription.status === "active",
-                currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+                currentPeriodEnd: new Date(periodEnd * 1000),
               });
             }
             
@@ -412,6 +405,162 @@ export async function registerRoutes(
       res.json(snapshot);
     } catch (error) {
       res.status(500).json({ error: "Failed to save analytics" });
+    }
+  });
+
+  // Admin routes - require super admin access
+  app.get("/api/admin/organizations", async (req, res) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const orgs = await storage.getAllOrganizations();
+      const orgsWithStats = await Promise.all(orgs.map(async (org) => {
+        const members = await storage.getOrganizationMembers(org.id);
+        const subscription = await storage.getSubscription(org.id);
+        return {
+          ...org,
+          memberCount: members.length,
+          subscription,
+        };
+      }));
+      
+      res.json(orgsWithStats);
+    } catch (error) {
+      console.error("Admin get orgs error:", error);
+      res.status(500).json({ error: "Failed to fetch organizations" });
+    }
+  });
+
+  app.get("/api/admin/users", async (req, res) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const allUsers = await storage.getAllUsers();
+      res.json(allUsers);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  app.patch("/api/admin/organizations/:orgId", async (req, res) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const org = await storage.updateOrganization(req.params.orgId, req.body);
+      res.json(org);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update organization" });
+    }
+  });
+
+  app.delete("/api/admin/organizations/:orgId", async (req, res) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      await storage.deleteOrganization(req.params.orgId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete organization" });
+    }
+  });
+
+  app.patch("/api/admin/users/:userId", async (req, res) => {
+    try {
+      const adminUserId = req.headers["x-user-id"] as string;
+      if (!adminUserId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const adminUser = await storage.getUser(adminUserId);
+      if (!adminUser?.isSuperAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const updatedUser = await storage.updateUser(req.params.userId, req.body);
+      res.json(updatedUser);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update user" });
+    }
+  });
+
+  app.post("/api/admin/organizations", async (req, res) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const org = await storage.createOrganization(req.body);
+      res.json(org);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create organization" });
+    }
+  });
+
+  app.get("/api/admin/stats", async (req, res) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const orgs = await storage.getAllOrganizations();
+      const allUsers = await storage.getAllUsers();
+      
+      const activeOrgs = orgs.filter(o => o.isActive).length;
+      const paidOrgs = orgs.filter(o => o.subscriptionPlan && o.subscriptionPlan !== "free").length;
+      
+      res.json({
+        totalOrganizations: orgs.length,
+        activeOrganizations: activeOrgs,
+        paidOrganizations: paidOrgs,
+        totalUsers: allUsers.length,
+        superAdmins: allUsers.filter(u => u.isSuperAdmin).length,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch stats" });
     }
   });
 

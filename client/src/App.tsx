@@ -20,6 +20,7 @@ import Analytics from "@/pages/analytics";
 import Team from "@/pages/team";
 import Billing from "@/pages/billing";
 import Calculator from "@/pages/calculator";
+import Admin from "@/pages/admin";
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   const style = {
@@ -88,6 +89,14 @@ function Router() {
         <ProtectedRoute>
           <AuthenticatedLayout>
             <Calculator />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/admin">
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <Admin />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
