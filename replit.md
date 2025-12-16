@@ -44,6 +44,8 @@ A comprehensive SaaS analytics platform built with React, Express, TypeScript, a
 │   ├── storage.ts        # Database operations
 │   ├── db.ts            # Database connection
 │   ├── resend.ts        # Email service
+│   ├── services/
+│   │   └── ga4.ts       # Google Analytics 4 data fetching service
 │   └── index.ts         # Server entry point
 ├── shared/
 │   └── schema.ts        # Database schema (Drizzle)
@@ -75,7 +77,9 @@ A comprehensive SaaS analytics platform built with React, Express, TypeScript, a
 - Welcome dashboard with quick stats
 - Analytics page with charts (Recharts)
 - Date range selector (7/30/90 days)
-- Mock data for demonstration
+- Real-time data from Google Analytics 4 when organization credentials are configured
+- Simulated data fallback for demonstration when no integration is connected
+- Clear visual indicators showing whether data is live or simulated
 
 ### Phase 3: Team Management
 - Team members table

@@ -31,15 +31,30 @@ export async function fetchGA4Data(
 ): Promise<GA4Report> {
   const metadata = integration.metadata as Record<string, string> | null;
   
-  if (!metadata?.propertyId || !metadata?.serviceAccountJson) {
-    throw new Error("Missing GA4 credentials. Please update your integration settings.");
+  if (!metadata?.propertyId) {
+    throw new Error("Missing GA4 Property ID. Please update your integration settings.");
+  }
+  
+  if (!metadata?.serviceAccountJson) {
+    throw new Error("Missing service account JSON. Please upload your Google Cloud service account credentials.");
   }
 
   let credentials;
   try {
     credentials = JSON.parse(metadata.serviceAccountJson);
   } catch (e) {
-    throw new Error("Invalid service account JSON format");
+    throw new Error("Invalid service account JSON format. Please check that you've pasted the complete JSON file contents.");
+  }
+
+  // Validate required credential fields
+  if (!credentials.client_email) {
+    throw new Error("Service account JSON is missing 'client_email' field. Please use a valid service account key file.");
+  }
+  if (!credentials.private_key) {
+    throw new Error("Service account JSON is missing 'private_key' field. Please use a valid service account key file.");
+  }
+  if (!credentials.project_id) {
+    throw new Error("Service account JSON is missing 'project_id' field. Please use a valid service account key file.");
   }
 
   const analyticsDataClient = new BetaAnalyticsDataClient({
