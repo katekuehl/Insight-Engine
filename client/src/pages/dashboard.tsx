@@ -1,11 +1,37 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth-context";
 import { BarChart3, Users, TrendingUp, Activity } from "lucide-react";
-import { Link } from "wouter";
+import { Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 
 export default function Dashboard() {
   const { organization, user } = useAuth();
+
+  // Redirect super admins without an organization to admin panel
+  if (!organization && user?.isSuperAdmin) {
+    return <Redirect to="/admin" />;
+  }
+
+  // Show message for users without organization
+  if (!organization) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>No Organization</CardTitle>
+            <CardDescription>
+              You are not currently part of any organization.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Please wait for an invitation from an organization administrator, or contact support for assistance.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const quickStats = [
     {

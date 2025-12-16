@@ -46,6 +46,8 @@ export function AppSidebar() {
   const [location] = useLocation();
   const { organization, user } = useAuth();
 
+  const hasOrganization = !!organization;
+
   return (
     <Sidebar>
       <SidebarHeader className="p-4 border-b border-sidebar-border">
@@ -55,35 +57,15 @@ export function AppSidebar() {
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-semibold" data-testid="text-org-name">
-              {organization?.name || "Analytics"}
+              {organization?.name || "Analytics Platform"}
             </span>
-            <span className="text-xs text-muted-foreground">Platform</span>
+            <span className="text-xs text-muted-foreground">
+              {user?.isSuperAdmin ? "Super Admin" : "Platform"}
+            </span>
           </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Menu</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location === item.url}
-                    data-testid={`nav-${item.title.toLowerCase()}`}
-                  >
-                    <Link href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        
         {user?.isSuperAdmin && (
           <SidebarGroup>
             <SidebarGroupLabel>Administration</SidebarGroupLabel>
@@ -102,6 +84,40 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+        
+        {hasOrganization && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Organization</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {menuItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={location === item.url}
+                      data-testid={`nav-${item.title.toLowerCase()}`}
+                    >
+                      <Link href={item.url}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+        
+        {!hasOrganization && !user?.isSuperAdmin && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <div className="p-4 text-sm text-muted-foreground">
+                You are not part of any organization yet.
+              </div>
             </SidebarGroupContent>
           </SidebarGroup>
         )}
