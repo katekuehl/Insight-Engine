@@ -17,6 +17,8 @@ export type PlatformType = typeof PLATFORM_TYPES[number];
 export const organizations = pgTable("organizations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
+  primaryContactEmail: text("primary_contact_email"), // Main contact who receives setup invite
+  primaryUserId: varchar("primary_user_id"), // First user who accepted invite
   stripeCustomerId: text("stripe_customer_id"),
   subscriptionPlan: text("subscription_plan").default("free"),
   isActive: boolean("is_active").default(true),
@@ -39,8 +41,20 @@ export const invites = pgTable("invites", {
   organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
   invitedEmail: text("invited_email").notNull(),
   role: text("role").default("member"),
+  isOrgSetupInvite: boolean("is_org_setup_invite").default(false), // True for primary contact invites
+  createdBySuperAdmin: boolean("created_by_super_admin").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   expiresAt: timestamp("expires_at").notNull(),
+});
+
+// Impersonation audit log - tracks when super admins view orgs
+export const impersonationLogs = pgTable("impersonation_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  superAdminId: varchar("super_admin_id").references(() => users.id).notNull(),
+  targetOrgId: varchar("target_org_id").references(() => organizations.id).notNull(),
+  reason: text("reason"),
+  startedAt: timestamp("started_at").defaultNow(),
+  endedAt: timestamp("ended_at"),
 });
 
 export const subscriptions = pgTable("subscriptions", {
@@ -173,6 +187,11 @@ export const insertInviteSchema = createInsertSchema(invites).omit({
   createdAt: true,
 });
 
+export const insertImpersonationLogSchema = createInsertSchema(impersonationLogs).omit({
+  id: true,
+  startedAt: true,
+});
+
 export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
   id: true,
   createdAt: true,
@@ -216,6 +235,9 @@ export type User = typeof users.$inferSelect;
 
 export type InsertInvite = z.infer<typeof insertInviteSchema>;
 export type Invite = typeof invites.$inferSelect;
+
+export type InsertImpersonationLog = z.infer<typeof insertImpersonationLogSchema>;
+export type ImpersonationLog = typeof impersonationLogs.$inferSelect;
 
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 export type Subscription = typeof subscriptions.$inferSelect;

@@ -1,8 +1,9 @@
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, isNull } from "drizzle-orm";
 import {
   users, organizations, invites, subscriptions, analyticsSnapshots,
   integrations, syncJobs, metricsAds, metricsAnalytics, metricsCrm,
+  impersonationLogs,
   type User, type InsertUser,
   type Organization, type InsertOrganization,
   type Invite, type InsertInvite,
@@ -13,6 +14,7 @@ import {
   type MetricsAds, type InsertMetricsAds,
   type MetricsAnalytics, type InsertMetricsAnalytics,
   type MetricsCrm, type InsertMetricsCrm,
+  type ImpersonationLog, type InsertImpersonationLog,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -68,6 +70,12 @@ export interface IStorage {
   
   getMetricsCrm(organizationId: string, startDate?: Date, endDate?: Date): Promise<MetricsCrm[]>;
   createMetricsCrm(metrics: InsertMetricsCrm): Promise<MetricsCrm>;
+  
+  // Impersonation log methods
+  createImpersonationLog(log: InsertImpersonationLog): Promise<ImpersonationLog>;
+  endImpersonationLog(id: string): Promise<ImpersonationLog | undefined>;
+  getActiveImpersonation(superAdminId: string): Promise<ImpersonationLog | undefined>;
+  getImpersonationLogs(superAdminId?: string): Promise<ImpersonationLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -282,6 +290,39 @@ export class DatabaseStorage implements IStorage {
   async createMetricsCrm(insertMetrics: InsertMetricsCrm): Promise<MetricsCrm> {
     const [metrics] = await db.insert(metricsCrm).values(insertMetrics).returning();
     return metrics;
+  }
+
+  // Impersonation log methods
+  async createImpersonationLog(insertLog: InsertImpersonationLog): Promise<ImpersonationLog> {
+    const [log] = await db.insert(impersonationLogs).values(insertLog).returning();
+    return log;
+  }
+
+  async endImpersonationLog(id: string): Promise<ImpersonationLog | undefined> {
+    const [log] = await db.update(impersonationLogs)
+      .set({ endedAt: new Date() })
+      .where(eq(impersonationLogs.id, id))
+      .returning();
+    return log;
+  }
+
+  async getActiveImpersonation(superAdminId: string): Promise<ImpersonationLog | undefined> {
+    const [log] = await db.select().from(impersonationLogs)
+      .where(and(
+        eq(impersonationLogs.superAdminId, superAdminId),
+        isNull(impersonationLogs.endedAt)
+      ));
+    return log;
+  }
+
+  async getImpersonationLogs(superAdminId?: string): Promise<ImpersonationLog[]> {
+    if (superAdminId) {
+      return db.select().from(impersonationLogs)
+        .where(eq(impersonationLogs.superAdminId, superAdminId))
+        .orderBy(desc(impersonationLogs.startedAt));
+    }
+    return db.select().from(impersonationLogs)
+      .orderBy(desc(impersonationLogs.startedAt));
   }
 }
 
