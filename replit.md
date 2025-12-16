@@ -30,6 +30,7 @@ A comprehensive SaaS analytics platform built with React, Express, TypeScript, a
 │   │   │   ├── accept-invite.tsx
 │   │   │   ├── dashboard.tsx
 │   │   │   ├── analytics.tsx
+│   │   │   ├── integrations.tsx  # Platform connections management
 │   │   │   ├── team.tsx
 │   │   │   ├── billing.tsx
 │   │   │   └── calculator.tsx
@@ -55,6 +56,11 @@ A comprehensive SaaS analytics platform built with React, Express, TypeScript, a
 - **invites**: Team member invitations
 - **subscriptions**: Stripe subscription data
 - **analyticsSnapshots**: Google Analytics data cache
+- **integrations**: Platform OAuth connections per organization (GA4, Google Ads, Facebook Ads, HubSpot, Salesforce)
+- **syncJobs**: Data sync job history and status tracking
+- **metricsAds**: Normalized ad platform metrics (spend, impressions, clicks, conversions, ROAS)
+- **metricsAnalytics**: Website analytics metrics from GA4
+- **metricsCrm**: CRM data from HubSpot/Salesforce (contacts, deals, pipeline)
 
 ## Key Features
 
@@ -138,6 +144,20 @@ The application runs on port 5000 with both frontend and backend served together
 - `GET /api/admin/users` - List all users
 - `PATCH /api/admin/users/:userId` - Update user (toggle super admin)
 
+### Integration API Endpoints
+- `GET /api/organization/:orgId/integrations` - List connected platforms
+- `GET /api/organization/:orgId/integrations/:integrationId` - Get integration details
+- `POST /api/organization/:orgId/integrations` - Create new integration connection
+- `PATCH /api/organization/:orgId/integrations/:integrationId` - Update integration
+- `DELETE /api/organization/:orgId/integrations/:integrationId` - Disconnect integration
+- `GET /api/organization/:orgId/integrations/:integrationId/sync-jobs` - Get sync history
+- `POST /api/organization/:orgId/integrations/:integrationId/sync` - Trigger data sync
+
+### Metrics API Endpoints
+- `GET /api/organization/:orgId/metrics/ads` - Get aggregated ad metrics
+- `GET /api/organization/:orgId/metrics/analytics` - Get website analytics metrics
+- `GET /api/organization/:orgId/metrics/crm` - Get CRM/sales metrics
+
 ## Making Yourself a Super Admin
 To access the admin panel, you need to be a super admin. Run this SQL command:
 ```sql
@@ -152,3 +172,8 @@ After running this, log out and log back in to see the Admin Panel in the sideba
 - Added Resend for transactional emails
 - Created responsive dashboard with sidebar navigation
 - Added Admin Panel for platform-wide organization and user management
+- Added multi-platform integration system for connecting external data sources
+  - Database schema for integrations, sync jobs, and normalized metrics
+  - API endpoints for managing platform connections
+  - Integrations UI page (Settings > Integrations)
+  - Support for: Google Analytics 4, Google Ads, Meta Ads, HubSpot, Salesforce

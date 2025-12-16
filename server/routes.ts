@@ -570,5 +570,164 @@ export async function registerRoutes(
     }
   });
 
+  // Integration routes - manage platform connections per organization
+  app.get("/api/organization/:orgId/integrations", async (req, res) => {
+    try {
+      const integrations = await storage.getIntegrationsByOrganization(req.params.orgId);
+      // Remove sensitive token data before sending
+      const safeIntegrations = integrations.map(({ accessToken, refreshToken, ...rest }) => rest);
+      res.json(safeIntegrations);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch integrations" });
+    }
+  });
+
+  app.get("/api/organization/:orgId/integrations/:integrationId", async (req, res) => {
+    try {
+      const integration = await storage.getIntegration(req.params.integrationId);
+      if (!integration || integration.organizationId !== req.params.orgId) {
+        return res.status(404).json({ error: "Integration not found" });
+      }
+      // Remove sensitive token data
+      const { accessToken, refreshToken, ...safeIntegration } = integration;
+      res.json(safeIntegration);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch integration" });
+    }
+  });
+
+  app.post("/api/organization/:orgId/integrations", async (req, res) => {
+    try {
+      const { platform, displayName, accountId, accountName, accessToken, refreshToken, tokenExpiresAt, scopes, metadata } = req.body;
+      
+      // Check if integration already exists for this platform
+      const existing = await storage.getIntegrationByPlatform(req.params.orgId, platform);
+      if (existing) {
+        return res.status(400).json({ error: "Integration for this platform already exists" });
+      }
+      
+      const integration = await storage.createIntegration({
+        organizationId: req.params.orgId,
+        platform,
+        displayName,
+        accountId,
+        accountName,
+        accessToken,
+        refreshToken,
+        tokenExpiresAt: tokenExpiresAt ? new Date(tokenExpiresAt) : undefined,
+        scopes,
+        status: "active",
+        metadata,
+      });
+      
+      // Remove sensitive data before returning
+      const { accessToken: _, refreshToken: __, ...safeIntegration } = integration;
+      res.json(safeIntegration);
+    } catch (error) {
+      console.error("Create integration error:", error);
+      res.status(500).json({ error: "Failed to create integration" });
+    }
+  });
+
+  app.patch("/api/organization/:orgId/integrations/:integrationId", async (req, res) => {
+    try {
+      const integration = await storage.getIntegration(req.params.integrationId);
+      if (!integration || integration.organizationId !== req.params.orgId) {
+        return res.status(404).json({ error: "Integration not found" });
+      }
+      
+      const updated = await storage.updateIntegration(req.params.integrationId, req.body);
+      if (!updated) {
+        return res.status(404).json({ error: "Integration not found" });
+      }
+      
+      // Remove sensitive data
+      const { accessToken, refreshToken, ...safeIntegration } = updated;
+      res.json(safeIntegration);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update integration" });
+    }
+  });
+
+  app.delete("/api/organization/:orgId/integrations/:integrationId", async (req, res) => {
+    try {
+      const integration = await storage.getIntegration(req.params.integrationId);
+      if (!integration || integration.organizationId !== req.params.orgId) {
+        return res.status(404).json({ error: "Integration not found" });
+      }
+      
+      await storage.deleteIntegration(req.params.integrationId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete integration" });
+    }
+  });
+
+  // Sync job routes
+  app.get("/api/organization/:orgId/integrations/:integrationId/sync-jobs", async (req, res) => {
+    try {
+      const integration = await storage.getIntegration(req.params.integrationId);
+      if (!integration || integration.organizationId !== req.params.orgId) {
+        return res.status(404).json({ error: "Integration not found" });
+      }
+      
+      const jobs = await storage.getSyncJobsByIntegration(req.params.integrationId);
+      res.json(jobs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch sync jobs" });
+    }
+  });
+
+  app.post("/api/organization/:orgId/integrations/:integrationId/sync", async (req, res) => {
+    try {
+      const integration = await storage.getIntegration(req.params.integrationId);
+      if (!integration || integration.organizationId !== req.params.orgId) {
+        return res.status(404).json({ error: "Integration not found" });
+      }
+      
+      // Create a new sync job
+      const job = await storage.createSyncJob({
+        integrationId: req.params.integrationId,
+        organizationId: req.params.orgId,
+        status: "pending",
+      });
+      
+      // TODO: Trigger actual sync worker here
+      // For now, we'll just return the job - the actual sync would be handled by a background worker
+      
+      res.json(job);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to start sync" });
+    }
+  });
+
+  // Metrics routes - get aggregated data from all connected platforms
+  app.get("/api/organization/:orgId/metrics/ads", async (req, res) => {
+    try {
+      const metrics = await storage.getMetricsAds(req.params.orgId);
+      res.json(metrics);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch ad metrics" });
+    }
+  });
+
+  app.get("/api/organization/:orgId/metrics/analytics", async (req, res) => {
+    try {
+      const metrics = await storage.getMetricsAnalytics(req.params.orgId);
+      res.json(metrics);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch analytics metrics" });
+    }
+  });
+
+  app.get("/api/organization/:orgId/metrics/crm", async (req, res) => {
+    try {
+      const metrics = await storage.getMetricsCrm(req.params.orgId);
+      res.json(metrics);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch CRM metrics" });
+    }
+  });
+
   return httpServer;
 }

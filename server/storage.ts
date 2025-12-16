@@ -1,12 +1,18 @@
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import {
   users, organizations, invites, subscriptions, analyticsSnapshots,
+  integrations, syncJobs, metricsAds, metricsAnalytics, metricsCrm,
   type User, type InsertUser,
   type Organization, type InsertOrganization,
   type Invite, type InsertInvite,
   type Subscription, type InsertSubscription,
   type AnalyticsSnapshot, type InsertAnalyticsSnapshot,
+  type Integration, type InsertIntegration,
+  type SyncJob, type InsertSyncJob,
+  type MetricsAds, type InsertMetricsAds,
+  type MetricsAnalytics, type InsertMetricsAnalytics,
+  type MetricsCrm, type InsertMetricsCrm,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -38,6 +44,30 @@ export interface IStorage {
   
   getAnalyticsSnapshots(organizationId: string, limit?: number): Promise<AnalyticsSnapshot[]>;
   createAnalyticsSnapshot(snapshot: InsertAnalyticsSnapshot): Promise<AnalyticsSnapshot>;
+  
+  // Integration methods
+  getIntegration(id: string): Promise<Integration | undefined>;
+  getIntegrationsByOrganization(organizationId: string): Promise<Integration[]>;
+  getIntegrationByPlatform(organizationId: string, platform: string): Promise<Integration | undefined>;
+  createIntegration(integration: InsertIntegration): Promise<Integration>;
+  updateIntegration(id: string, data: Partial<InsertIntegration>): Promise<Integration | undefined>;
+  deleteIntegration(id: string): Promise<void>;
+  
+  // Sync job methods
+  getSyncJob(id: string): Promise<SyncJob | undefined>;
+  getSyncJobsByIntegration(integrationId: string, limit?: number): Promise<SyncJob[]>;
+  createSyncJob(job: InsertSyncJob): Promise<SyncJob>;
+  updateSyncJob(id: string, data: Partial<InsertSyncJob>): Promise<SyncJob | undefined>;
+  
+  // Metrics methods
+  getMetricsAds(organizationId: string, startDate?: Date, endDate?: Date): Promise<MetricsAds[]>;
+  createMetricsAds(metrics: InsertMetricsAds): Promise<MetricsAds>;
+  
+  getMetricsAnalytics(organizationId: string, startDate?: Date, endDate?: Date): Promise<MetricsAnalytics[]>;
+  createMetricsAnalytics(metrics: InsertMetricsAnalytics): Promise<MetricsAnalytics>;
+  
+  getMetricsCrm(organizationId: string, startDate?: Date, endDate?: Date): Promise<MetricsCrm[]>;
+  createMetricsCrm(metrics: InsertMetricsCrm): Promise<MetricsCrm>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -152,6 +182,106 @@ export class DatabaseStorage implements IStorage {
   async createAnalyticsSnapshot(insertSnapshot: InsertAnalyticsSnapshot): Promise<AnalyticsSnapshot> {
     const [snapshot] = await db.insert(analyticsSnapshots).values(insertSnapshot).returning();
     return snapshot;
+  }
+
+  // Integration methods
+  async getIntegration(id: string): Promise<Integration | undefined> {
+    const [integration] = await db.select().from(integrations).where(eq(integrations.id, id));
+    return integration;
+  }
+
+  async getIntegrationsByOrganization(organizationId: string): Promise<Integration[]> {
+    return db.select().from(integrations)
+      .where(eq(integrations.organizationId, organizationId))
+      .orderBy(desc(integrations.createdAt));
+  }
+
+  async getIntegrationByPlatform(organizationId: string, platform: string): Promise<Integration | undefined> {
+    const [integration] = await db.select().from(integrations)
+      .where(and(
+        eq(integrations.organizationId, organizationId),
+        eq(integrations.platform, platform)
+      ));
+    return integration;
+  }
+
+  async createIntegration(insertIntegration: InsertIntegration): Promise<Integration> {
+    const [integration] = await db.insert(integrations).values(insertIntegration).returning();
+    return integration;
+  }
+
+  async updateIntegration(id: string, data: Partial<InsertIntegration>): Promise<Integration | undefined> {
+    const [integration] = await db.update(integrations)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(integrations.id, id))
+      .returning();
+    return integration;
+  }
+
+  async deleteIntegration(id: string): Promise<void> {
+    // Delete related sync jobs and metrics first
+    await db.delete(syncJobs).where(eq(syncJobs.integrationId, id));
+    await db.delete(metricsAds).where(eq(metricsAds.integrationId, id));
+    await db.delete(metricsAnalytics).where(eq(metricsAnalytics.integrationId, id));
+    await db.delete(metricsCrm).where(eq(metricsCrm.integrationId, id));
+    await db.delete(integrations).where(eq(integrations.id, id));
+  }
+
+  // Sync job methods
+  async getSyncJob(id: string): Promise<SyncJob | undefined> {
+    const [job] = await db.select().from(syncJobs).where(eq(syncJobs.id, id));
+    return job;
+  }
+
+  async getSyncJobsByIntegration(integrationId: string, limit = 10): Promise<SyncJob[]> {
+    return db.select().from(syncJobs)
+      .where(eq(syncJobs.integrationId, integrationId))
+      .orderBy(desc(syncJobs.createdAt))
+      .limit(limit);
+  }
+
+  async createSyncJob(insertJob: InsertSyncJob): Promise<SyncJob> {
+    const [job] = await db.insert(syncJobs).values(insertJob).returning();
+    return job;
+  }
+
+  async updateSyncJob(id: string, data: Partial<InsertSyncJob>): Promise<SyncJob | undefined> {
+    const [job] = await db.update(syncJobs).set(data).where(eq(syncJobs.id, id)).returning();
+    return job;
+  }
+
+  // Metrics methods
+  async getMetricsAds(organizationId: string, startDate?: Date, endDate?: Date): Promise<MetricsAds[]> {
+    return db.select().from(metricsAds)
+      .where(eq(metricsAds.organizationId, organizationId))
+      .orderBy(desc(metricsAds.metricDate));
+  }
+
+  async createMetricsAds(insertMetrics: InsertMetricsAds): Promise<MetricsAds> {
+    const [metrics] = await db.insert(metricsAds).values(insertMetrics).returning();
+    return metrics;
+  }
+
+  async getMetricsAnalytics(organizationId: string, startDate?: Date, endDate?: Date): Promise<MetricsAnalytics[]> {
+    return db.select().from(metricsAnalytics)
+      .where(eq(metricsAnalytics.organizationId, organizationId))
+      .orderBy(desc(metricsAnalytics.metricDate));
+  }
+
+  async createMetricsAnalytics(insertMetrics: InsertMetricsAnalytics): Promise<MetricsAnalytics> {
+    const [metrics] = await db.insert(metricsAnalytics).values(insertMetrics).returning();
+    return metrics;
+  }
+
+  async getMetricsCrm(organizationId: string, startDate?: Date, endDate?: Date): Promise<MetricsCrm[]> {
+    return db.select().from(metricsCrm)
+      .where(eq(metricsCrm.organizationId, organizationId))
+      .orderBy(desc(metricsCrm.metricDate));
+  }
+
+  async createMetricsCrm(insertMetrics: InsertMetricsCrm): Promise<MetricsCrm> {
+    const [metrics] = await db.insert(metricsCrm).values(insertMetrics).returning();
+    return metrics;
   }
 }
 

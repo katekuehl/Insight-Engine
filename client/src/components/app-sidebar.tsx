@@ -1,4 +1,4 @@
-import { LayoutDashboard, BarChart3, Users, CreditCard, Calculator, Shield } from "lucide-react";
+import { LayoutDashboard, BarChart3, Users, CreditCard, Calculator, Shield, Settings, Plug } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import {
   Sidebar,
@@ -24,6 +24,11 @@ const menuItems = [
     title: "Analytics",
     url: "/analytics",
     icon: BarChart3,
+  },
+  {
+    title: "Integrations",
+    url: "/settings/integrations",
+    icon: Plug,
   },
   {
     title: "Team",

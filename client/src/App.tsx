@@ -21,6 +21,7 @@ import Team from "@/pages/team";
 import Billing from "@/pages/billing";
 import Calculator from "@/pages/calculator";
 import Admin from "@/pages/admin";
+import Integrations from "@/pages/integrations";
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   const style = {
@@ -97,6 +98,14 @@ function Router() {
         <ProtectedRoute>
           <AuthenticatedLayout>
             <Admin />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/settings/integrations">
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <Integrations />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
