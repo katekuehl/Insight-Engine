@@ -22,6 +22,7 @@ export const organizations = pgTable("organizations", {
   stripeCustomerId: text("stripe_customer_id"),
   subscriptionPlan: text("subscription_plan").default("free"),
   isActive: boolean("is_active").default(true),
+  companyNarrative: jsonb("company_narrative"), // Company context for analytics engines
   createdAt: timestamp("created_at").defaultNow(),
 });
 

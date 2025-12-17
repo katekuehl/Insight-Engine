@@ -1364,5 +1364,83 @@ export async function registerRoutes(
     }
   });
 
+  // Database verification endpoint - for testing and demo purposes
+  app.get("/api/organization/:orgId/data-verification", async (req, res) => {
+    try {
+      const orgId = req.params.orgId;
+      
+      const [
+        analyticsCount,
+        adsCount,
+        crmCount,
+        emailCount,
+        integrations,
+        organization
+      ] = await Promise.all([
+        storage.getMetricsAnalyticsCount(orgId),
+        storage.getMetricsAdsCount(orgId),
+        storage.getMetricsCrmCount(orgId),
+        storage.getMetricsEmailCount(orgId),
+        storage.getIntegrationsByOrganization(orgId),
+        storage.getOrganization(orgId),
+      ]);
+      
+      res.json({
+        organization: {
+          id: organization?.id,
+          name: organization?.name,
+          companyNarrative: organization?.companyNarrative,
+        },
+        integrations: integrations.map(i => ({
+          id: i.id,
+          platform: i.platform,
+          displayName: i.displayName,
+          status: i.status,
+          lastSyncAt: i.lastSyncAt,
+        })),
+        dataCounts: {
+          metricsAnalytics: analyticsCount,
+          metricsAds: adsCount,
+          metricsCrm: crmCount,
+          metricsEmail: emailCount,
+          total: analyticsCount + adsCount + crmCount + emailCount,
+        },
+      });
+    } catch (error) {
+      console.error("Data verification error:", error);
+      res.status(500).json({ error: "Failed to verify data" });
+    }
+  });
+
+  // Get sample metrics data for verification
+  app.get("/api/organization/:orgId/metrics-sample", async (req, res) => {
+    try {
+      const orgId = req.params.orgId;
+      const { table, limit = "5" } = req.query;
+      
+      const sampleLimit = Math.min(parseInt(limit as string) || 5, 50);
+      
+      let data: any = {};
+      
+      if (!table || table === "analytics") {
+        data.analytics = await storage.getMetricsAnalyticsSample(orgId, sampleLimit);
+      }
+      if (!table || table === "ads") {
+        data.ads = await storage.getMetricsAdsSample(orgId, sampleLimit);
+      }
+      if (!table || table === "crm") {
+        data.crm = await storage.getMetricsCrmSample(orgId, sampleLimit);
+      }
+      if (!table || table === "email") {
+        data.email = await storage.getMetricsEmailSample(orgId, sampleLimit);
+      }
+      
+      res.json(data);
+    } catch (error) {
+      console.error("Metrics sample error:", error);
+      res.status(500).json({ error: "Failed to fetch metrics sample" });
+    }
+  });
+
   return httpServer;
 }

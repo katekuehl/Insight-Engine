@@ -2,7 +2,7 @@ import { db } from "./db";
 import { eq, and, desc, isNull, inArray } from "drizzle-orm";
 import {
   users, organizations, invites, subscriptions, analyticsSnapshots,
-  integrations, syncJobs, metricsAds, metricsAnalytics, metricsCrm,
+  integrations, syncJobs, metricsAds, metricsAnalytics, metricsCrm, metricsEmail,
   impersonationLogs,
   dags, dagTasks, dagRuns, taskInstances, xcomData, analysisOutputs,
   analysisRuns, analysisReports, recommendedActions,
@@ -16,6 +16,7 @@ import {
   type MetricsAds, type InsertMetricsAds,
   type MetricsAnalytics, type InsertMetricsAnalytics,
   type MetricsCrm, type InsertMetricsCrm,
+  type MetricsEmail, type InsertMetricsEmail,
   type ImpersonationLog, type InsertImpersonationLog,
   type Dag, type InsertDag,
   type DagTask, type InsertDagTask,
@@ -27,6 +28,7 @@ import {
   type AnalysisReport, type InsertAnalysisReport,
   type RecommendedAction, type InsertRecommendedAction,
 } from "@shared/schema";
+import { sql, count } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -146,6 +148,16 @@ export interface IStorage {
   
   // Sync jobs by org
   getSyncJobsByOrganization(organizationId: string, limit?: number): Promise<SyncJob[]>;
+  
+  // Data verification methods
+  getMetricsAnalyticsCount(organizationId: string): Promise<number>;
+  getMetricsAdsCount(organizationId: string): Promise<number>;
+  getMetricsCrmCount(organizationId: string): Promise<number>;
+  getMetricsEmailCount(organizationId: string): Promise<number>;
+  getMetricsAnalyticsSample(organizationId: string, limit: number): Promise<MetricsAnalytics[]>;
+  getMetricsAdsSample(organizationId: string, limit: number): Promise<MetricsAds[]>;
+  getMetricsCrmSample(organizationId: string, limit: number): Promise<MetricsCrm[]>;
+  getMetricsEmailSample(organizationId: string, limit: number): Promise<MetricsEmail[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -617,6 +629,59 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(syncJobs)
       .where(eq(syncJobs.organizationId, organizationId))
       .orderBy(desc(syncJobs.createdAt))
+      .limit(limit);
+  }
+
+  // Data verification methods
+  async getMetricsAnalyticsCount(organizationId: string): Promise<number> {
+    const [result] = await db.select({ count: count() }).from(metricsAnalytics)
+      .where(eq(metricsAnalytics.organizationId, organizationId));
+    return result?.count ?? 0;
+  }
+
+  async getMetricsAdsCount(organizationId: string): Promise<number> {
+    const [result] = await db.select({ count: count() }).from(metricsAds)
+      .where(eq(metricsAds.organizationId, organizationId));
+    return result?.count ?? 0;
+  }
+
+  async getMetricsCrmCount(organizationId: string): Promise<number> {
+    const [result] = await db.select({ count: count() }).from(metricsCrm)
+      .where(eq(metricsCrm.organizationId, organizationId));
+    return result?.count ?? 0;
+  }
+
+  async getMetricsEmailCount(organizationId: string): Promise<number> {
+    const [result] = await db.select({ count: count() }).from(metricsEmail)
+      .where(eq(metricsEmail.organizationId, organizationId));
+    return result?.count ?? 0;
+  }
+
+  async getMetricsAnalyticsSample(organizationId: string, limit: number): Promise<MetricsAnalytics[]> {
+    return db.select().from(metricsAnalytics)
+      .where(eq(metricsAnalytics.organizationId, organizationId))
+      .orderBy(desc(metricsAnalytics.metricDate))
+      .limit(limit);
+  }
+
+  async getMetricsAdsSample(organizationId: string, limit: number): Promise<MetricsAds[]> {
+    return db.select().from(metricsAds)
+      .where(eq(metricsAds.organizationId, organizationId))
+      .orderBy(desc(metricsAds.metricDate))
+      .limit(limit);
+  }
+
+  async getMetricsCrmSample(organizationId: string, limit: number): Promise<MetricsCrm[]> {
+    return db.select().from(metricsCrm)
+      .where(eq(metricsCrm.organizationId, organizationId))
+      .orderBy(desc(metricsCrm.metricDate))
+      .limit(limit);
+  }
+
+  async getMetricsEmailSample(organizationId: string, limit: number): Promise<MetricsEmail[]> {
+    return db.select().from(metricsEmail)
+      .where(eq(metricsEmail.organizationId, organizationId))
+      .orderBy(desc(metricsEmail.metricDate))
       .limit(limit);
   }
 }
