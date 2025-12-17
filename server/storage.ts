@@ -5,6 +5,7 @@ import {
   integrations, syncJobs, metricsAds, metricsAnalytics, metricsCrm,
   impersonationLogs,
   dags, dagTasks, dagRuns, taskInstances, xcomData, analysisOutputs,
+  analysisRuns, analysisReports, recommendedActions,
   type User, type InsertUser,
   type Organization, type InsertOrganization,
   type Invite, type InsertInvite,
@@ -22,6 +23,9 @@ import {
   type TaskInstance, type InsertTaskInstance,
   type XcomData, type InsertXcomData,
   type AnalysisOutput, type InsertAnalysisOutput,
+  type AnalysisRun, type InsertAnalysisRun,
+  type AnalysisReport, type InsertAnalysisReport,
+  type RecommendedAction, type InsertRecommendedAction,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -122,6 +126,26 @@ export interface IStorage {
   getAnalysisOutputsByOrganization(organizationId: string, limit?: number): Promise<AnalysisOutput[]>;
   getAnalysisOutputByDagRun(dagRunId: string): Promise<AnalysisOutput | undefined>;
   createAnalysisOutput(output: InsertAnalysisOutput): Promise<AnalysisOutput>;
+  
+  // Analysis Run methods
+  getAnalysisRun(id: string): Promise<AnalysisRun | undefined>;
+  getAnalysisRunsByOrganization(organizationId: string, limit?: number): Promise<AnalysisRun[]>;
+  createAnalysisRun(run: InsertAnalysisRun): Promise<AnalysisRun>;
+  updateAnalysisRun(id: string, data: Partial<InsertAnalysisRun>): Promise<AnalysisRun | undefined>;
+  
+  // Analysis Report methods
+  getAnalysisReport(id: string): Promise<AnalysisReport | undefined>;
+  getAnalysisReportsByOrganization(organizationId: string, limit?: number): Promise<AnalysisReport[]>;
+  createAnalysisReport(report: InsertAnalysisReport): Promise<AnalysisReport>;
+  
+  // Recommended Action methods
+  getRecommendedAction(id: string): Promise<RecommendedAction | undefined>;
+  getRecommendedActionsByOrganization(organizationId: string, implemented?: boolean): Promise<RecommendedAction[]>;
+  createRecommendedAction(action: InsertRecommendedAction): Promise<RecommendedAction>;
+  updateRecommendedAction(id: string, data: Partial<InsertRecommendedAction>): Promise<RecommendedAction | undefined>;
+  
+  // Sync jobs by org
+  getSyncJobsByOrganization(organizationId: string, limit?: number): Promise<SyncJob[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -515,6 +539,85 @@ export class DatabaseStorage implements IStorage {
   async createAnalysisOutput(insertOutput: InsertAnalysisOutput): Promise<AnalysisOutput> {
     const [output] = await db.insert(analysisOutputs).values(insertOutput).returning();
     return output;
+  }
+
+  // Analysis Run methods
+  async getAnalysisRun(id: string): Promise<AnalysisRun | undefined> {
+    const [run] = await db.select().from(analysisRuns).where(eq(analysisRuns.id, id));
+    return run;
+  }
+
+  async getAnalysisRunsByOrganization(organizationId: string, limit = 50): Promise<AnalysisRun[]> {
+    return db.select().from(analysisRuns)
+      .where(eq(analysisRuns.organizationId, organizationId))
+      .orderBy(desc(analysisRuns.createdAt))
+      .limit(limit);
+  }
+
+  async createAnalysisRun(insertRun: InsertAnalysisRun): Promise<AnalysisRun> {
+    const [run] = await db.insert(analysisRuns).values(insertRun).returning();
+    return run;
+  }
+
+  async updateAnalysisRun(id: string, data: Partial<InsertAnalysisRun>): Promise<AnalysisRun | undefined> {
+    const [run] = await db.update(analysisRuns).set(data).where(eq(analysisRuns.id, id)).returning();
+    return run;
+  }
+
+  // Analysis Report methods
+  async getAnalysisReport(id: string): Promise<AnalysisReport | undefined> {
+    const [report] = await db.select().from(analysisReports).where(eq(analysisReports.id, id));
+    return report;
+  }
+
+  async getAnalysisReportsByOrganization(organizationId: string, limit = 50): Promise<AnalysisReport[]> {
+    return db.select().from(analysisReports)
+      .where(eq(analysisReports.organizationId, organizationId))
+      .orderBy(desc(analysisReports.createdAt))
+      .limit(limit);
+  }
+
+  async createAnalysisReport(insertReport: InsertAnalysisReport): Promise<AnalysisReport> {
+    const [report] = await db.insert(analysisReports).values(insertReport).returning();
+    return report;
+  }
+
+  // Recommended Action methods
+  async getRecommendedAction(id: string): Promise<RecommendedAction | undefined> {
+    const [action] = await db.select().from(recommendedActions).where(eq(recommendedActions.id, id));
+    return action;
+  }
+
+  async getRecommendedActionsByOrganization(organizationId: string, implemented?: boolean): Promise<RecommendedAction[]> {
+    if (implemented !== undefined) {
+      return db.select().from(recommendedActions)
+        .where(and(
+          eq(recommendedActions.organizationId, organizationId),
+          eq(recommendedActions.implemented, implemented)
+        ))
+        .orderBy(desc(recommendedActions.createdAt));
+    }
+    return db.select().from(recommendedActions)
+      .where(eq(recommendedActions.organizationId, organizationId))
+      .orderBy(desc(recommendedActions.createdAt));
+  }
+
+  async createRecommendedAction(insertAction: InsertRecommendedAction): Promise<RecommendedAction> {
+    const [action] = await db.insert(recommendedActions).values(insertAction).returning();
+    return action;
+  }
+
+  async updateRecommendedAction(id: string, data: Partial<InsertRecommendedAction>): Promise<RecommendedAction | undefined> {
+    const [action] = await db.update(recommendedActions).set(data).where(eq(recommendedActions.id, id)).returning();
+    return action;
+  }
+
+  // Sync jobs by organization
+  async getSyncJobsByOrganization(organizationId: string, limit = 50): Promise<SyncJob[]> {
+    return db.select().from(syncJobs)
+      .where(eq(syncJobs.organizationId, organizationId))
+      .orderBy(desc(syncJobs.createdAt))
+      .limit(limit);
   }
 }
 

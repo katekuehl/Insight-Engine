@@ -16,13 +16,15 @@ import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
 import AcceptInvite from "@/pages/accept-invite";
 import Dashboard from "@/pages/dashboard";
-import Analytics from "@/pages/analytics";
 import Team from "@/pages/team";
 import Billing from "@/pages/billing";
-import Calculator from "@/pages/calculator";
 import Admin from "@/pages/admin";
 import AdminLogin from "@/pages/admin-login";
-import Integrations from "@/pages/integrations";
+import DataSources from "@/pages/data-sources";
+import Analysis from "@/pages/analysis";
+import AnalysisBuilder from "@/pages/analysis-builder";
+import AnalysisReports from "@/pages/analysis-reports";
+import Insights from "@/pages/insights";
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   const style = {
@@ -64,10 +66,50 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
-      <Route path="/analytics">
+      <Route path="/data-sources">
         <ProtectedRoute>
           <AuthenticatedLayout>
-            <Analytics />
+            <DataSources />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/analysis">
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <Analysis />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/analysis/builder">
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <AnalysisBuilder />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/analysis/reports/:id">
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <AnalysisReports />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/analysis/reports">
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <AnalysisReports />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/insights">
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <Insights />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
@@ -88,34 +130,10 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
-      <Route path="/calculator">
-        <ProtectedRoute>
-          <AuthenticatedLayout>
-            <Calculator />
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      </Route>
-      
       <Route path="/admin">
         <ProtectedRoute>
           <AuthenticatedLayout>
             <Admin />
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/settings/integrations">
-        <ProtectedRoute>
-          <AuthenticatedLayout>
-            <Integrations />
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/integrations">
-        <ProtectedRoute>
-          <AuthenticatedLayout>
-            <Integrations />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

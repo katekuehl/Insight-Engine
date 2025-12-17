@@ -1,7 +1,7 @@
-# Analytics Platform - Multi-Tenant SaaS Application
+# Strata Analytics - Multi-Tenant SaaS Analytics Platform
 
 ## Overview
-A comprehensive SaaS analytics platform built with React, Express, TypeScript, and PostgreSQL. Features include user authentication via Supabase, team management, billing integration with Stripe, and predictive analytics.
+A comprehensive SaaS analytics platform (Strata) built with React, Express, TypeScript, and PostgreSQL. Features include user authentication via Supabase, team management, billing integration with Stripe, and a six-phase analytical pipeline: Data Integration, Descriptive, Diagnostic, Predictive, Prescriptive, and Operationalization analytics.
 
 ## Tech Stack
 - **Frontend**: React 18 + TypeScript + Vite
@@ -29,11 +29,13 @@ A comprehensive SaaS analytics platform built with React, Express, TypeScript, a
 │   │   │   ├── reset-password.tsx
 │   │   │   ├── accept-invite.tsx
 │   │   │   ├── dashboard.tsx
-│   │   │   ├── analytics.tsx
-│   │   │   ├── integrations.tsx  # Platform connections management
+│   │   │   ├── data-sources.tsx      # Connect external platforms (renamed from integrations)
+│   │   │   ├── analysis.tsx          # Analysis hub with quick actions
+│   │   │   ├── analysis-builder.tsx  # Build new analysis (select sources, engines, configure)
+│   │   │   ├── analysis-reports.tsx  # Analysis library with history and filters
+│   │   │   ├── insights.tsx          # Insights & Actions (recommendations, CRM push)
 │   │   │   ├── team.tsx
-│   │   │   ├── billing.tsx
-│   │   │   └── calculator.tsx
+│   │   │   └── billing.tsx
 │   │   ├── lib/          # Utilities and contexts
 │   │   │   ├── supabase.ts
 │   │   │   ├── auth-context.tsx
@@ -96,6 +98,14 @@ A comprehensive SaaS analytics platform built with React, Express, TypeScript, a
 - **taskInstances**: Individual task executions with status, timing, and error tracking
 - **xcomData**: Cross-communication data between tasks (like Airflow XCom)
 - **analysisOutputs**: Final aggregated analysis results per organization
+
+### Analysis Workflow Schema
+- **analysisRuns**: User-initiated analysis executions with selected engines and date ranges
+- **analysisTemplates**: Saved analysis configurations for reuse
+- **analysisReports**: Generated reports from completed analyses
+- **recommendedActions**: Actionable recommendations with priority, target audience, and implementation tracking
+- **dataValidationLog**: Data quality validation results per source
+- **analysisAuditLog**: Audit trail for analysis activities
 
 ## Key Features
 

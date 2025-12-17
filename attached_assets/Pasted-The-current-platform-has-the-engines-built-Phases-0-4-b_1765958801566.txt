@@ -1,0 +1,301 @@
+The current platform has the engines built (Phases 0-4), but needs front-end reorganization and data persistence changes to align with the Happy Path: Data Sources → Validation → Analysis Engines → Insights → Actions → Live Operations.Page Structure: Consolidate & Rename
+
+Current:
+dashboard.tsx
+analytics.tsx
+calculator.tsx
+Recommended:
+dashboard.tsx → KEEP (org overview)
+integrations.tsx → RENAME TO data-sources.tsx
+analytics.tsx → RENAME TO analysis.tsx (central hub)
+calculator.tsx → REPLACE WITH analysis-builder.tsx (interactive analysis creation)
+NEW → analysis-reports.tsx (report library)
+NEW → insights.tsx (production serving UI)
+Database Schema Additions
+
+Add these tables to support analysis history, reporting, and actions:
+Analysis Execution & History:
+analysis_runs (org_id, analysis_name, dag_run_id, status, created_by, created_at)
+analysis_templates (org_id, name, config JSON, created_by)
+Report Library:
+analysis_reports (org_id, analysis_run_id, report_name, insights_summary, recommendations JSON, created_at)
+recommended_actions (org_id, analysis_run_id, action_type, estimated_impact, implemented)
+Quality & Compliance:
+data_validation_log (org_id, integration_id, records_valid, validation_errors JSON)
+analysis_audit_log (org_id, analysis_run_id, user_id, action, created_at)
+Engine Labeling (Rename for Clarity)
+
+Make engines user-facing, not technical:
+phase_1_relationship_engine → Descriptive Analytics Engine (What's happening?)
+phase_2_impact_engine → Diagnostic Analytics Engine (Why is it happening?)
+phase_3_forecast_engine → Predictive Analytics Engine (What will happen?)
+phase_4_propensity_engine → Prescriptive Analytics Engine (Who to target? What drives outcomes?)
+production_serving_engine → Operationalization Engine (How to execute decisions?)
+UI shows progression:
+Step 1: Understand Patterns (Descriptive)
+Step 2: Understand Causation (Diagnostic)
+Step 3: Predict Futures (Predictive)
+Step 4: Target Customers (Prescriptive)
+Step 5: Execute Decisions (Operationalize)
+New User Flows1. Analysis Builder (Replaces Calculator)
+
+User creates a new analysis:
+Select data sources (GA4, Google Ads, Meta, Salesforce, HubSpot)
+Choose date range
+Select which engines to run (or run all 5)
+Configure parameters (business outcome: purchase/churn/conversion)
+Execute (triggers orchestration DAG)
+View results as they stream in
+Save as template
+Generate report → add to library
+2. Analysis Reports Library (New)
+
+User views all historical analyses:
+List of past analyses with dates, templates, status
+Filter by date, template, user
+View full report with insights + recommendations
+Download (PDF/CSV/JSON)
+Share with team
+See audit trail (who ran it, when, what was accessed)
+3. Insights & Actions (Production Serving UI)
+
+User sees actionable recommendations:
+Propensity scores (who to target)
+Churn risk alerts (interventions)
+Attribution insights (channel priorities)
+Forecast warnings (high uncertainty)
+"Push to CRM" / "Create Campaign" buttons
+Mark actions as "implemented" and track ROI
+Data Sources Page (Renamed from Integrations)
+
+Show:
+Connected platforms (GA4, Google Ads, Meta Ads, Salesforce, HubSpot)
+Connection status & last sync
+Data validation report (% valid records, errors)
+Manual sync trigger
+Sync history
+list future integrations as coming soon (MailChimp, Active Campaign, etc)
+Sidebar Navigation
+
+Strata Analytics
+Dashboard
+Data Sources (was Integrations)
+Analysis
+Build New Analysis
+Analysis Library
+Insights & Actions
+Settings
+Team Members
+Billing
+Account
+Admin Panel (super admin only)
+Terminology Updates
+Avoid
+Use
+Calculator
+Analysis Builder
+Metrics
+Normalized Metrics / Insights
+Analytics (generic)
+Descriptive/Diagnostic/Predictive/Prescriptive Analytics
+Analysis Snapshots
+Data Snapshots
+Sync Jobs
+Data Sync Runs
+
+Current Integration Support (DO NOT mention future ones)
+✅ Google Analytics 4
+✅ Google Ads
+✅ Meta Ads
+✅ Salesforce
+✅ HubSpot
+Summary
+
+This restructuring aligns the platform with your Happy Path diagram:
+
+Data Sources (Connect integrations)
+↓
+Validation (Clean data)
+↓
+Analysis Engines (Run 5-phase analytics)
+↓
+Insights Library (Store results & reports)
+↓
+Actions (Push to CRM, marketing, operations)
+↓
+Live Operations (Decisions implemented)
+
+
+# ✅ Analysis Progress Tracker - User-Friendly UI Specs
+**Core Principle:** Users see **business-friendly progress through analytical stages**, not technical execution or code.
+
+***
+
+# During Analysis: Real-Time Progress
+┌──────────────────────────────────────────────────────┐
+│ Analyzing Your Data                                  │
+│ Started: Dec 17, 2:05 PM                             │
+└──────────────────────────────────────────────────────┘
+● Understanding Your Data [████████░░░░░] 40%
+Descriptive Analytics Engine running...
+○ Analyzing What Drives Outcomes
+Diagnostic Analytics Engine (waiting)
+○ Predicting Future Performance
+Predictive Analytics Engine (waiting)
+○ Identifying Target Customers
+Prescriptive Analytics Engine (waiting)
+○ Finalizing Recommendations
+Operationalization Engine (waiting)
+
+Estimated time remaining: 45 seconds
+
+**Visual Elements:**
+*   ● = Currently running
+*   ○ = Queued/waiting
+*   ✓ = Complete
+*   Progress bar shows real-time percentage
+*   Friendly engine names (not "phase\_1\_relationship\_engine")
+*   Estimated time updates live
+
+***
+
+# After Completion: Clean Checklist
+┌──────────────────────────────────────────────────────┐
+│ ✓ Analysis Complete                                  │
+│ Completed: Dec 17, 2:06 PM | Duration: 1 min 15s     │
+└──────────────────────────────────────────────────────┘
+✓ Data Quality Verified
+2,847 records validated across all sources
+✓ Patterns Identified
+12 significant correlations found
+✓ Impact Analysis Complete
+3 key factors driving your outcomes
+✓ Future Forecasted
+90-day projection with confidence intervals
+✓ Opportunities Uncovered
+18 high-value customer segments identified
+✓ Recommendations Generated
+Ready to implement
+
+┌──────────────────────────────────┐
+│ [View Full Results] [Export]     │
+└──────────────────────────────────┘
+
+**Checklist:**
+*   Green checkmarks for each stage
+*   Business metrics (not technical ones)
+*   One-liner summary (what was learned)
+*   All ✓ = ready to view results
+
+***
+
+# Error State (User-Friendly)
+┌──────────────────────────────────────────────────────┐
+│ ✗ Analysis Encountered an Issue                      │
+│ Failed at: Step 3 - Future Forecasting               │
+└──────────────────────────────────────────────────────┘
+✓ Data Quality Verified (2,847 records)
+✓ Patterns Identified (12 correlations)
+✓ Impact Analysis Complete (3 key factors)
+✗ Future Forecasting Failed
+Insufficient historical data (need 6+ months, you have 3)
+
+WHAT HAPPENED: Your forecast needs at least 6 months of history to make reliable predictions. You have only 3 months.
+WHAT YOU CAN DO:
+Extend your analysis date range
+Exclude forecasting and view current patterns
+Try again later when more data is available
+[Retry] [Skip Forecasting] [Contact Support]
+
+***
+
+# Engine Display Names (User-Facing)
+| Technical | User-Facing |
+|-----------|-------------|
+| phase\_0\_data\_ingestion | Data Import & Validation |
+| phase\_1\_relationship\_engine | Understanding Your Data |
+| phase\_2\_impact\_engine | Analyzing What Drives Outcomes |
+| phase\_3\_forecast\_engine | Predicting Future Performance |
+| phase\_4\_propensity\_engine | Identifying Target Customers |
+| production\_serving\_engine | Finalizing Recommendations |
+
+***
+
+# What Users NEVER See
+*   ❌ Code or logs
+*   ❌ DAG task names
+*   ❌ Stack traces or technical errors
+*   ❌ Database queries
+*   ❌ Model training metrics (internal only)
+*   ❌ API response codes
+*   ❌ Test results
+
+***
+
+# What Users DO See
+*   ✅ Business-friendly stage names
+*   ✅ Real-time progress (%)
+*   ✅ Estimated time remaining
+*   ✅ Business metrics (records validated, insights found, opportunities identified)
+*   ✅ Completion checklist with one-liners
+*   ✅ Clear error messages with actionable solutions
+*   ✅ Next steps (View Results, Export, etc)
+
+***
+
+# Backend to Frontend Data Flow
+**Backend sends progress events:**
+```javascript
+{
+  type: "progress_update",
+  analysis_run_id: "run_12345",
+  engine: "descriptive_analytics",
+  engine_display_name: "Understanding Your Data",
+  status: "running",
+  progress_percent: 40,
+  message: "Processing 2,847 records..."
+}
+
+// On completion:
+{
+  type: "analysis_complete",
+  engines_completed: [
+    {
+      display_name: "Understanding Your Data",
+      summary: "2,847 records validated",
+      metrics: { records: 2847 }
+    },
+    // ...
+  ],
+  total_duration_seconds: 75
+}
+-----Component Structure
+AnalysisProgressTracker
+├─ ProgressHeader (title, time, status)
+├─ EngineProgressList
+│  ├─ EngineProgressItem × N
+│  │  ├─ StatusIcon (●/○/✓/✗)
+│  │  ├─ EngineName (user-friendly)
+│  │  ├─ ProgressBar (if running)
+│  │  ├─ StatusMessage (real-time)
+│  │  └─ Summary (business metric)
+│  └─ EstimatedTime
+├─ ErrorStateCard (if failed)
+├─ CompletionChecklist (when done)
+└─ ActionButtons (View Results, Export)
+-----User Journey
+User clicks "Run Analysis"
+↓
+Progress Tracker appears (Running state)
+↓
+User watches stages complete in sequence
+↓
+All ✓ Complete
+↓
+Completion Checklist shown
+↓
+Click [View Full Results]
+↓
+Analysis Reports page (full findings, visualizations)
+User never sees code, logs, or technical details at any point.
+

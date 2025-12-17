@@ -266,6 +266,112 @@ export const analysisOutputs = pgTable("analysis_outputs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// ============================================
+// ANALYSIS EXECUTION & REPORTING TABLES
+// ============================================
+
+// Analysis run statuses
+export const ANALYSIS_STATUSES = ["pending", "running", "completed", "failed", "cancelled"] as const;
+export type AnalysisStatus = typeof ANALYSIS_STATUSES[number];
+
+// Action types for recommended actions
+export const ACTION_TYPES = ["campaign", "email", "crm_update", "budget_adjustment", "intervention", "other"] as const;
+export type ActionType = typeof ACTION_TYPES[number];
+
+// Analysis runs - user-initiated analysis executions
+export const analysisRuns = pgTable("analysis_runs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  templateId: varchar("template_id"), // Optional reference to analysis template
+  dagRunId: varchar("dag_run_id").references(() => dagRuns.id),
+  status: text("status").default("pending"),
+  enginesSelected: text("engines_selected").array(), // Which engines to run
+  dataSources: text("data_sources").array(), // Which integrations to use
+  dateRangeStart: timestamp("date_range_start"),
+  dateRangeEnd: timestamp("date_range_end"),
+  config: jsonb("config"), // User-configured parameters (outcome, audience, etc.)
+  progressPercent: integer("progress_percent").default(0),
+  currentEngine: text("current_engine"), // Currently running engine display name
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+// Analysis templates - saved analysis configurations
+export const analysisTemplates = pgTable("analysis_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  enginesSelected: text("engines_selected").array(),
+  dataSources: text("data_sources").array(),
+  config: jsonb("config"), // Default parameters
+  isDefault: boolean("is_default").default(false),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Analysis reports - generated reports from analysis runs
+export const analysisReports = pgTable("analysis_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  analysisRunId: varchar("analysis_run_id").references(() => analysisRuns.id).notNull(),
+  reportName: text("report_name").notNull(),
+  insightsSummary: text("insights_summary"), // Executive summary
+  keyFindings: jsonb("key_findings"), // Array of key findings
+  recommendations: jsonb("recommendations"), // Array of recommendations
+  metrics: jsonb("metrics"), // Summary metrics (records validated, correlations found, etc.)
+  visualizations: jsonb("visualizations"), // Chart specifications
+  exportFormats: text("export_formats").array(), // Available export formats
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Recommended actions - actionable items from analysis
+export const recommendedActions = pgTable("recommended_actions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  analysisRunId: varchar("analysis_run_id").references(() => analysisRuns.id).notNull(),
+  actionType: text("action_type").notNull(), // campaign, email, crm_update, budget_adjustment, intervention
+  title: text("title").notNull(),
+  description: text("description"),
+  targetAudience: text("target_audience"), // Who this action targets
+  estimatedImpact: jsonb("estimated_impact"), // { metric, value, confidence }
+  priority: integer("priority").default(1), // 1 = highest priority
+  implemented: boolean("implemented").default(false),
+  implementedAt: timestamp("implemented_at"),
+  implementedBy: varchar("implemented_by").references(() => users.id),
+  resultMetrics: jsonb("result_metrics"), // Actual results after implementation
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Data validation log - tracks data quality per sync
+export const dataValidationLog = pgTable("data_validation_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  integrationId: varchar("integration_id").references(() => integrations.id).notNull(),
+  syncJobId: varchar("sync_job_id").references(() => syncJobs.id),
+  recordsTotal: integer("records_total").default(0),
+  recordsValid: integer("records_valid").default(0),
+  recordsInvalid: integer("records_invalid").default(0),
+  validationErrors: jsonb("validation_errors"), // Array of error types and counts
+  qualityScore: decimal("quality_score", { precision: 5, scale: 2 }), // 0-100%
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Analysis audit log - tracks who accessed what
+export const analysisAuditLog = pgTable("analysis_audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  analysisRunId: varchar("analysis_run_id").references(() => analysisRuns.id),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  action: text("action").notNull(), // created, viewed, exported, shared, deleted
+  details: jsonb("details"), // Additional context
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // CRM metrics - contacts, deals, pipeline data
 export const metricsCrm = pgTable("metrics_crm", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -373,6 +479,38 @@ export const insertAnalysisOutputSchema = createInsertSchema(analysisOutputs).om
   createdAt: true,
 });
 
+// Analysis execution & reporting insert schemas
+export const insertAnalysisRunSchema = createInsertSchema(analysisRuns).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAnalysisTemplateSchema = createInsertSchema(analysisTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAnalysisReportSchema = createInsertSchema(analysisReports).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertRecommendedActionSchema = createInsertSchema(recommendedActions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDataValidationLogSchema = createInsertSchema(dataValidationLog).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAnalysisAuditLogSchema = createInsertSchema(analysisAuditLog).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type Organization = typeof organizations.$inferSelect;
 
@@ -424,3 +562,42 @@ export type XcomData = typeof xcomData.$inferSelect;
 
 export type InsertAnalysisOutput = z.infer<typeof insertAnalysisOutputSchema>;
 export type AnalysisOutput = typeof analysisOutputs.$inferSelect;
+
+// Analysis execution & reporting types
+export type InsertAnalysisRun = z.infer<typeof insertAnalysisRunSchema>;
+export type AnalysisRun = typeof analysisRuns.$inferSelect;
+
+export type InsertAnalysisTemplate = z.infer<typeof insertAnalysisTemplateSchema>;
+export type AnalysisTemplate = typeof analysisTemplates.$inferSelect;
+
+export type InsertAnalysisReport = z.infer<typeof insertAnalysisReportSchema>;
+export type AnalysisReport = typeof analysisReports.$inferSelect;
+
+export type InsertRecommendedAction = z.infer<typeof insertRecommendedActionSchema>;
+export type RecommendedAction = typeof recommendedActions.$inferSelect;
+
+export type InsertDataValidationLog = z.infer<typeof insertDataValidationLogSchema>;
+export type DataValidationLog = typeof dataValidationLog.$inferSelect;
+
+export type InsertAnalysisAuditLog = z.infer<typeof insertAnalysisAuditLogSchema>;
+export type AnalysisAuditLog = typeof analysisAuditLog.$inferSelect;
+
+// User-friendly engine display names
+export const ENGINE_DISPLAY_NAMES: Record<string, string> = {
+  "data_ingestion": "Data Import & Validation",
+  "relationship_engine": "Understanding Your Data",
+  "impact_engine": "Analyzing What Drives Outcomes",
+  "forecast_engine": "Predicting Future Performance",
+  "propensity_engine": "Identifying Target Customers",
+  "production_serving": "Finalizing Recommendations",
+};
+
+// Engine descriptions for UI
+export const ENGINE_DESCRIPTIONS: Record<string, string> = {
+  "data_ingestion": "Validating and importing data from your connected sources",
+  "relationship_engine": "Discovering patterns and correlations in your data",
+  "impact_engine": "Understanding what factors drive your key outcomes",
+  "forecast_engine": "Projecting future performance with confidence intervals",
+  "propensity_engine": "Identifying high-value customer segments to target",
+  "production_serving": "Generating actionable recommendations and reports",
+};

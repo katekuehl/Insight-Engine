@@ -1245,5 +1245,124 @@ export async function registerRoutes(
     }
   });
 
+  // Analysis Run routes
+  app.get("/api/organization/:orgId/analysis-runs", async (req, res) => {
+    try {
+      const runs = await storage.getAnalysisRunsByOrganization(req.params.orgId);
+      res.json(runs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch analysis runs" });
+    }
+  });
+
+  app.get("/api/organization/:orgId/analysis-runs/:runId", async (req, res) => {
+    try {
+      const run = await storage.getAnalysisRun(req.params.runId);
+      if (!run || run.organizationId !== req.params.orgId) {
+        return res.status(404).json({ error: "Analysis run not found" });
+      }
+      res.json(run);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch analysis run" });
+    }
+  });
+
+  app.post("/api/organization/:orgId/analysis-runs", async (req, res) => {
+    try {
+      const { name, enginesSelected, dataSources, dateRangeStart, dateRangeEnd, config, createdBy } = req.body;
+      
+      const run = await storage.createAnalysisRun({
+        organizationId: req.params.orgId,
+        name: name || `Analysis ${new Date().toISOString()}`,
+        enginesSelected: enginesSelected || [],
+        dataSources: dataSources || [],
+        dateRangeStart: dateRangeStart ? new Date(dateRangeStart) : undefined,
+        dateRangeEnd: dateRangeEnd ? new Date(dateRangeEnd) : undefined,
+        config: config || {},
+        createdBy,
+        status: "pending",
+      });
+      
+      res.json(run);
+    } catch (error) {
+      console.error("Create analysis run error:", error);
+      res.status(500).json({ error: "Failed to create analysis run" });
+    }
+  });
+
+  app.patch("/api/organization/:orgId/analysis-runs/:runId", async (req, res) => {
+    try {
+      const run = await storage.getAnalysisRun(req.params.runId);
+      if (!run || run.organizationId !== req.params.orgId) {
+        return res.status(404).json({ error: "Analysis run not found" });
+      }
+      
+      const updated = await storage.updateAnalysisRun(req.params.runId, req.body);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update analysis run" });
+    }
+  });
+
+  // Analysis Report routes
+  app.get("/api/organization/:orgId/analysis-reports", async (req, res) => {
+    try {
+      const reports = await storage.getAnalysisReportsByOrganization(req.params.orgId);
+      res.json(reports);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch analysis reports" });
+    }
+  });
+
+  app.get("/api/organization/:orgId/analysis-reports/:reportId", async (req, res) => {
+    try {
+      const report = await storage.getAnalysisReport(req.params.reportId);
+      if (!report || report.organizationId !== req.params.orgId) {
+        return res.status(404).json({ error: "Analysis report not found" });
+      }
+      res.json(report);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch analysis report" });
+    }
+  });
+
+  // Recommended Actions routes
+  app.get("/api/organization/:orgId/recommended-actions", async (req, res) => {
+    try {
+      const { implemented } = req.query;
+      const actions = await storage.getRecommendedActionsByOrganization(
+        req.params.orgId,
+        implemented !== undefined ? implemented === "true" : undefined
+      );
+      res.json(actions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch recommended actions" });
+    }
+  });
+
+  app.patch("/api/organization/:orgId/recommended-actions/:actionId", async (req, res) => {
+    try {
+      const action = await storage.getRecommendedAction(req.params.actionId);
+      if (!action || action.organizationId !== req.params.orgId) {
+        return res.status(404).json({ error: "Recommended action not found" });
+      }
+      
+      const updated = await storage.updateRecommendedAction(req.params.actionId, req.body);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update recommended action" });
+    }
+  });
+
+  // Sync jobs by organization
+  app.get("/api/organization/:orgId/sync-jobs", async (req, res) => {
+    try {
+      const jobs = await storage.getSyncJobsByOrganization(req.params.orgId);
+      res.json(jobs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch sync jobs" });
+    }
+  });
+
   return httpServer;
 }

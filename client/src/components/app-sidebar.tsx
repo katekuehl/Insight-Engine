@@ -1,4 +1,4 @@
-import { LayoutDashboard, BarChart3, Users, CreditCard, Calculator, Shield, Settings, Plug } from "lucide-react";
+import { LayoutDashboard, BarChart3, Users, CreditCard, Shield, Database, Lightbulb, FileText, PlusCircle, ChevronDown } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import {
   Sidebar,
@@ -9,49 +9,25 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useAuth } from "@/lib/auth-context";
-
-const menuItems = [
-  {
-    title: "Dashboard",
-    url: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Analytics",
-    url: "/analytics",
-    icon: BarChart3,
-  },
-  {
-    title: "Integrations",
-    url: "/settings/integrations",
-    icon: Plug,
-  },
-  {
-    title: "Team",
-    url: "/team",
-    icon: Users,
-  },
-  {
-    title: "Billing",
-    url: "/billing",
-    icon: CreditCard,
-  },
-  {
-    title: "Calculator",
-    url: "/calculator",
-    icon: Calculator,
-  },
-];
 
 export function AppSidebar() {
   const [location] = useLocation();
   const { organization, user } = useAuth();
 
   const hasOrganization = !!organization;
+  const isAnalysisActive = location.startsWith("/analysis");
 
   return (
     <Sidebar>
@@ -62,7 +38,7 @@ export function AppSidebar() {
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-semibold" data-testid="text-org-name">
-              {organization?.name || "Analytics Platform"}
+              {organization?.name || "Strata Analytics"}
             </span>
             <span className="text-xs text-muted-foreground">
               {user?.isSuperAdmin ? "Super Admin" : "Platform"}
@@ -94,27 +70,128 @@ export function AppSidebar() {
         )}
         
         {hasOrganization && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Organization</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {menuItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
+          <>
+            <SidebarGroup>
+              <SidebarGroupLabel>Overview</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
-                      isActive={location === item.url}
-                      data-testid={`nav-${item.title.toLowerCase()}`}
+                      isActive={location === "/dashboard"}
+                      data-testid="nav-dashboard"
                     >
-                      <Link href={item.url}>
-                        <item.icon />
-                        <span>{item.title}</span>
+                      <Link href="/dashboard">
+                        <LayoutDashboard />
+                        <span>Dashboard</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={location === "/data-sources"}
+                      data-testid="nav-data-sources"
+                    >
+                      <Link href="/data-sources">
+                        <Database />
+                        <span>Data Sources</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupLabel>Analytics</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <Collapsible defaultOpen={isAnalysisActive} className="group/collapsible">
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton isActive={isAnalysisActive} data-testid="nav-analysis">
+                          <BarChart3 />
+                          <span>Analysis</span>
+                          <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton
+                              asChild
+                              isActive={location === "/analysis/builder"}
+                            >
+                              <Link href="/analysis/builder" data-testid="nav-analysis-builder">
+                                <PlusCircle className="h-4 w-4" />
+                                <span>Build New Analysis</span>
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton
+                              asChild
+                              isActive={location.startsWith("/analysis/reports") || location === "/analysis"}
+                            >
+                              <Link href="/analysis/reports" data-testid="nav-analysis-reports">
+                                <FileText className="h-4 w-4" />
+                                <span>Analysis Library</span>
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={location === "/insights"}
+                      data-testid="nav-insights"
+                    >
+                      <Link href="/insights">
+                        <Lightbulb />
+                        <span>Insights & Actions</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupLabel>Settings</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={location === "/team"}
+                      data-testid="nav-team"
+                    >
+                      <Link href="/team">
+                        <Users />
+                        <span>Team Members</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={location === "/billing"}
+                      data-testid="nav-billing"
+                    >
+                      <Link href="/billing">
+                        <CreditCard />
+                        <span>Billing</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
         )}
         
         {!hasOrganization && !user?.isSuperAdmin && (
@@ -129,7 +206,7 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="p-4 border-t border-sidebar-border">
         <p className="text-xs text-muted-foreground text-center">
-          Analytics Platform v1.0
+          Strata Analytics v1.0
         </p>
       </SidebarFooter>
     </Sidebar>
