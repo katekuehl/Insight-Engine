@@ -201,9 +201,11 @@ export class DagExecutor {
     return async (taskInstance, dagRun, config, upstreamXcom) => {
       // Passthrough operator: collects upstream data and passes it through
       // Used for intermediate aggregation nodes in the DAG
+      // It merges all upstream outputs into the output directly for downstream consumption
       const collectFrom = config.collectFrom as string[] || [];
       const outputKey = config.outputKey as string || "passthrough";
       
+      // Collect all data from upstream tasks
       const collected: Record<string, unknown> = {};
       for (const key of collectFrom) {
         if (upstreamXcom[key]) {
@@ -211,10 +213,19 @@ export class DagExecutor {
         }
       }
       
+      // Also include any other upstream data not explicitly listed
+      // This ensures all upstream outputs flow through
+      for (const [key, value] of Object.entries(upstreamXcom)) {
+        if (!collected[key]) {
+          collected[key] = value;
+        }
+      }
+      
       return {
         success: true,
         output: {
-          [outputKey]: collected,
+          ...collected, // Include all collected data at top level for downstream access
+          [outputKey]: collected, // Also include under the output key
           collectedFrom: collectFrom,
           timestamp: new Date().toISOString(),
         },
