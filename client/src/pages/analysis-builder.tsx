@@ -389,7 +389,7 @@ export default function AnalysisBuilder() {
                 <div className="flex gap-2">
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="flex-1 justify-start text-left font-normal">
+                      <Button variant="outline" className="flex-1 justify-start text-left font-normal" data-testid="button-date-from">
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {format(dateRange.from, "MMM d, yyyy")}
                       </Button>
@@ -405,7 +405,7 @@ export default function AnalysisBuilder() {
                   </Popover>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="flex-1 justify-start text-left font-normal">
+                      <Button variant="outline" className="flex-1 justify-start text-left font-normal" data-testid="button-date-to">
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {format(dateRange.to, "MMM d, yyyy")}
                       </Button>

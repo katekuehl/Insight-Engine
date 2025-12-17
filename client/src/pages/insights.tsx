@@ -269,7 +269,7 @@ export default function Insights() {
                 <p className="text-muted-foreground text-center mb-4">
                   Run an analysis to generate actionable recommendations.
                 </p>
-                <Button onClick={() => window.location.href = "/analysis/builder"}>
+                <Button onClick={() => window.location.href = "/analysis/builder"} data-testid="button-build-analysis">
                   Build New Analysis
                 </Button>
               </CardContent>
