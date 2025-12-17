@@ -37,11 +37,15 @@ from operators.svm_classifier import svm_classifier_op
 from operators.classification_ensemble import classification_ensemble_op
 from operators.propensity_scores import propensity_scores_op
 from operators.ranked_feature_importances import ranked_feature_importances_op
+from operators.analysis_data_layer import analysis_data_layer_op
+from operators.insight_deck import insight_deck_op
+from operators.business_results_layer import business_results_layer_op
+from operators.production_serving_layer import production_serving_layer_op
 
 app = FastAPI(
     title="Strata Analytics Service",
-    description="Statistical analysis operators for Phase 1-4: Relationship Engine, Impact Engine, Forecast Engine, and Propensity Engine",
-    version="4.0.0"
+    description="Statistical analysis operators for Phases 1-5: Relationship Engine, Impact Engine, Forecast Engine, Propensity Engine, and Production Serving",
+    version="5.0.0"
 )
 
 class OperatorRequest(BaseModel):
@@ -545,6 +549,74 @@ async def run_ranked_feature_importances(request: OperatorRequest):
     try:
         result = await ranked_feature_importances_op.execute(
             organization_id=int(request.organization_id),
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+# ============================================================================
+# PRODUCTION SERVING (END PHASE) OPERATORS
+# ============================================================================
+
+@app.post("/operators/analysis_data_layer", response_model=OperatorResponse)
+async def run_analysis_data_layer(request: OperatorRequest):
+    """
+    Analysis Data Layer: Aggregates, versions, and persists all analytical
+    outputs from Phases 1-4 into a unified production data model.
+    """
+    try:
+        result = await analysis_data_layer_op.execute(
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/insight_deck", response_model=OperatorResponse)
+async def run_insight_deck(request: OperatorRequest):
+    """
+    Insight Deck: Generates automated executive reports with visualizations
+    and actionable recommendations for business stakeholders.
+    """
+    try:
+        result = await insight_deck_op.execute(
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/business_results_layer", response_model=OperatorResponse)
+async def run_business_results_layer(request: OperatorRequest):
+    """
+    Business Results Layer: Delivers analytical findings to stakeholders
+    through multiple channels (email, Slack, dashboard, CRM).
+    """
+    try:
+        result = await business_results_layer_op.execute(
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/production_serving_layer", response_model=OperatorResponse)
+async def run_production_serving_layer(request: OperatorRequest):
+    """
+    Production Serving Layer: Deploys analytical scores and predictions
+    into live operational systems via API endpoints and database write-back.
+    """
+    try:
+        result = await production_serving_layer_op.execute(
             config=request.config,
             upstream_data=request.upstream_data
         )

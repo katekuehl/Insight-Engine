@@ -96,7 +96,15 @@ export class DagExecutor {
       "ranked_feature_importances",
     ];
     
-    const allAnalyticalOperators = [...phase1Operators, ...phase2Operators, ...phase3Operators, ...phase4Operators];
+    // End Phase: Production Serving operators - all call Python service
+    const productionServingOperators = [
+      "analysis_data_layer",
+      "insight_deck",
+      "business_results_layer",
+      "production_serving_layer",
+    ];
+    
+    const allAnalyticalOperators = [...phase1Operators, ...phase2Operators, ...phase3Operators, ...phase4Operators, ...productionServingOperators];
     
     for (const op of allAnalyticalOperators) {
       this.registerOperator(op, this.createAnalyticalOperator(op));

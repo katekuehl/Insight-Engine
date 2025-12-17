@@ -657,6 +657,102 @@ export const PROPENSITY_ENGINE_TASKS: Omit<InsertDagTask, "dagId">[] = [
 ];
 
 /**
+ * Production Serving DAG - End Phase
+ * Operationalizes all analytical results into business-consumable formats
+ * Depends on Phase 4 (Propensity Engine) completion
+ */
+export const PRODUCTION_SERVING_DAG: InsertDag = {
+  dagId: "production_serving",
+  displayName: "Production Serving",
+  description: "Operationalizes analytical results into API endpoints, insight decks, stakeholder reports, and database write-back for live systems.",
+  schedule: null, // Triggered after Phase 4 completes
+  isActive: true,
+  defaultConfig: {
+    dependsOn: "propensity_engine", // Phase 4 must complete first
+    deploymentMode: "staged",
+    writeBackEnabled: true,
+    autoDistribute: false,
+  },
+};
+
+export const PRODUCTION_SERVING_TASKS: Omit<InsertDagTask, "dagId">[] = [
+  // Analysis Data Layer - aggregates all upstream outputs
+  {
+    taskId: "analysis_data_layer",
+    displayName: "Analysis Data Layer",
+    operatorType: "analysis_data_layer",
+    operatorConfig: {
+      include_metadata: true,
+      retention_days: 90,
+    },
+    upstreamTaskIds: [],
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 300,
+  },
+  // Insight Deck - generates executive reports
+  {
+    taskId: "insight_deck",
+    displayName: "Analytical Report / Insight Deck",
+    operatorType: "insight_deck",
+    operatorConfig: {
+      format: "executive_summary",
+      audience: "leadership",
+      include_visualizations: true,
+      max_insights: 10,
+    },
+    upstreamTaskIds: ["analysis_data_layer"],
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 180,
+  },
+  // Business Results Layer - delivers to stakeholders (depends on insight deck)
+  {
+    taskId: "business_results_layer",
+    displayName: "Business Results Layer",
+    operatorType: "business_results_layer",
+    operatorConfig: {
+      channels: ["email", "dashboard", "slack"],
+      priority_threshold: 2,
+      auto_distribute: false,
+    },
+    upstreamTaskIds: ["insight_deck"],
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 180,
+  },
+  // Production Serving Layer - deploys to live systems (parallel with business results)
+  {
+    taskId: "production_serving_layer",
+    displayName: "Production Serving Layer",
+    operatorType: "production_serving_layer",
+    operatorConfig: {
+      deployment_mode: "staged",
+      write_back_enabled: true,
+      api_endpoints_enabled: true,
+      validation_required: true,
+    },
+    upstreamTaskIds: ["analysis_data_layer"],
+    retryCount: 2,
+    retryDelaySeconds: 60,
+    timeoutSeconds: 300,
+  },
+  // Completion marker - waits for both delivery paths
+  {
+    taskId: "complete",
+    displayName: "Mark Complete",
+    operatorType: "completion_marker",
+    operatorConfig: {
+      outputType: "production_serving",
+    },
+    upstreamTaskIds: ["business_results_layer", "production_serving_layer"],
+    retryCount: 1,
+    retryDelaySeconds: 10,
+    timeoutSeconds: 60,
+  },
+];
+
+/**
  * Seed all DAG definitions into the database
  */
 export async function seedDags(): Promise<void> {
@@ -745,6 +841,23 @@ export async function seedDags(): Promise<void> {
     console.log(`Created ${tasks.length} tasks for ${propensityEngineDag.dagId}`);
   } else {
     console.log(`DAG already exists: ${propensityEngineDag.dagId}`);
+  }
+  
+  // Seed Production Serving DAG (End Phase)
+  let productionServingDag = await storage.getDagByDagId(PRODUCTION_SERVING_DAG.dagId);
+  if (!productionServingDag) {
+    productionServingDag = await storage.createDag(PRODUCTION_SERVING_DAG);
+    console.log(`Created DAG: ${productionServingDag.dagId}`);
+    
+    // Create tasks
+    const tasks = PRODUCTION_SERVING_TASKS.map(task => ({
+      ...task,
+      dagId: productionServingDag!.id,
+    }));
+    await storage.createDagTasks(tasks);
+    console.log(`Created ${tasks.length} tasks for ${productionServingDag.dagId}`);
+  } else {
+    console.log(`DAG already exists: ${productionServingDag.dagId}`);
   }
   
   console.log("DAG seeding complete!");
