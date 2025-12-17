@@ -392,6 +392,31 @@ export const metricsCrm = pgTable("metrics_crm", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Email metrics - campaign performance from Pardot, HubSpot, etc.
+export const metricsEmail = pgTable("metrics_email", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  integrationId: varchar("integration_id").references(() => integrations.id).notNull(),
+  platform: text("platform").notNull(), // salesforce_pardot, hubspot
+  metricDate: timestamp("metric_date").notNull(),
+  totalEmailsSent: integer("total_emails_sent").default(0),
+  delivered: integer("delivered").default(0),
+  bounced: integer("bounced").default(0),
+  bounceRate: decimal("bounce_rate", { precision: 5, scale: 2 }).default("0"),
+  opens: integer("opens").default(0),
+  uniqueOpens: integer("unique_opens").default(0),
+  openRate: decimal("open_rate", { precision: 5, scale: 2 }).default("0"),
+  clicks: integer("clicks").default(0),
+  uniqueClicks: integer("unique_clicks").default(0),
+  clickRate: decimal("click_rate", { precision: 5, scale: 2 }).default("0"),
+  conversions: integer("conversions").default(0),
+  conversionRate: decimal("conversion_rate", { precision: 5, scale: 2 }).default("0"),
+  unsubscribes: integer("unsubscribes").default(0),
+  subscribers: integer("subscribers").default(0),
+  campaignsSent: integer("campaigns_sent").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({
   id: true,
   createdAt: true,
@@ -443,6 +468,11 @@ export const insertMetricsAnalyticsSchema = createInsertSchema(metricsAnalytics)
 });
 
 export const insertMetricsCrmSchema = createInsertSchema(metricsCrm).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertMetricsEmailSchema = createInsertSchema(metricsEmail).omit({
   id: true,
   createdAt: true,
 });
@@ -543,6 +573,9 @@ export type MetricsAnalytics = typeof metricsAnalytics.$inferSelect;
 
 export type InsertMetricsCrm = z.infer<typeof insertMetricsCrmSchema>;
 export type MetricsCrm = typeof metricsCrm.$inferSelect;
+
+export type InsertMetricsEmail = z.infer<typeof insertMetricsEmailSchema>;
+export type MetricsEmail = typeof metricsEmail.$inferSelect;
 
 // Orchestration types
 export type InsertDag = z.infer<typeof insertDagSchema>;

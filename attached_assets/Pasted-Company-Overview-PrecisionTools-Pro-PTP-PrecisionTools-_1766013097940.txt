@@ -1,0 +1,78 @@
+Company Overview: PrecisionTools Pro (PTP)
+PrecisionTools Pro is a B2B company specializing in professional-grade diagnostic and repair tools for auto repair shops, founded in 2019. The company sells high-value equipment and software to independent auto shops, franchise service centers, and automotive dealerships across North America.
+Product Portfolio
+	1.	SmartDiag Pro - Advanced diagnostic scanning tools ($2,500-$8,000)
+	2.	LiftMaster Series - Professional vehicle lifts ($12,000-$45,000)
+	3.	ToolHub Connect - Cloud-based inventory management SaaS ($99-$499/month)
+	4.	Precision Calibration Kits - Wheel alignment equipment ($5,000-$15,000)
+2025 Performance Story
+The company experienced a dramatic year with three distinct phases:
+Q1-Q2 2025 (Strong Performance): New product launches and aggressive marketing drove excellent results, with monthly revenue averaging $1.1M in Q1 and maintaining momentum through Q2.
+Q3 2025 (Significant Dip): Industry-wide supply chain disruptions, economic uncertainty, and internal marketing leadership changes caused a severe downturn. Website traffic dropped 50%+, ad conversions plummeted, and monthly revenue fell to just ~$47K average.
+Q4 2025 (Strategic Recovery): New leadership implemented recovery strategies including promotional campaigns, enhanced sales training, and strategic partnerships. Performance metrics recovered to 85-95% of Q1-Q2 levels.
+Full Year Results:
+	•	Total Revenue: $8,018,944
+	•	New Customers: 389 accounts
+	•	Active Customer Base: 505 accounts
+	•	Total Website Sessions: 157,031
+	•	Total Ad Spend: $491,824
+2026 Goals & Budget
+Marketing Goals
+	•	Website Traffic: 180,000 visits (15% growth)
+	•	MQLs: 4,800 annually (400/month)
+	•	Email Subscribers: 45,000
+	•	Brand Awareness: 35% in target market
+Sales Goals
+	•	Annual Revenue: $18,500,000 (131% growth)
+	•	New Customers: 320 accounts
+	•	SQLs: 2,400 annually (200/month)
+	•	Customer Retention: 88%
+	•	Average Deal Size: $22,000
+	•	Sales Cycle: 45 days (reduced from 52)
+Marketing Budget: $1,850,000
+	•	Digital Advertising (40%): $740,000
+	•	Content Marketing & SEO (20%): $370,000
+	•	Email Marketing (10%): $185,000
+	•	Events & Trade Shows (20%): $370,000
+	•	Marketing Technology (6%): $111,000
+	•	Creative & Design (4%): $74,000
+
+Four Complete Datasets Generated
+1. Website Performance (Google Analytics) - 12 Months
+Key Metrics Included:
+	•	Sessions, Users, New Users, Pageviews
+	•	Pages per Session, Avg Session Duration, Bounce Rate
+	•	Goal Completions & Conversion Rates
+	•	Traffic Sources (Organic, Direct, Paid, Social, Referral, Email)
+	•	Device Breakdown (Desktop, Mobile, Tablet)
+	•	Top Landing Pages Performance
+2. Advertising Performance (Google Ads + Facebook Ads) - 12 Months
+Key Metrics Included:
+	•	Impressions, Clicks, CTR for both platforms
+	•	Ad Spend, CPC, CPA for both platforms
+	•	Conversions & Conversion Rates
+	•	ROAS (Return on Ad Spend) - both individual and blended
+	•	Campaign Type Breakdown (Search, Display, Remarketing, Social)
+	•	Combined totals and platform comparisons
+3. Email Campaign Performance (Salesforce Pardot) - 12 Months
+Key Metrics Included:
+	•	Total Subscribers (growing month over month)
+	•	Campaigns Sent, Total Emails Sent
+	•	Delivery Metrics (Delivered, Bounced, Bounce Rate)
+	•	Engagement (Opens, Open Rate, Unique Opens, Clicks, Click Rate)
+	•	Click-to-Open Rate, Unique Click Rate
+	•	Conversions & Conversion Rate
+	•	List Growth (New Subscribers, Unsubscribes)
+	•	Email Type Breakdown (Newsletter, Promotional, Nurture, Transactional)
+4. Sales & CRM Performance (Salesforce) - 12 Months
+Key Metrics Included:
+	•	Lead Funnel (Total Leads → MQLs → SQLs → Opportunities)
+	•	Conversion Rates at each funnel stage
+	•	Pipeline Value, Open Opportunities
+	•	Closed Won, Closed Lost, Win Rate, Loss Rate
+	•	Monthly Revenue, Cumulative Revenue YTD
+	•	Average Deal Size, Sales Cycle Length
+	•	Customer Metrics (New Customers, Churned Customers, Active Customers, Churn Rate)
+	•	Lead Source Breakdown (Website, Paid Ads, Email, Referral, Trade Shows)
+	•	Product Revenue Breakdown (SmartDiag, LiftMaster, ToolHub, Calibration Kits)
+	•	Sales Team Metrics (Revenue per Rep, Deals per Rep)

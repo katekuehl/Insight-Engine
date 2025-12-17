@@ -1,0 +1,27 @@
+How should normalized metrics be stored in each table (metricsAnalytics, metricsAds, metricsCrm, metricsEmail)? Should we use a JSON column for flexible fields or separate columns for each metric?
+For cross-platform ads data (metricsAds), how do we distinguish between Google Ads and Meta Ads—should we use a separate platform field, separate tables, or separate normalized columns?
+What’s the standard schema for each metrics table? Should it follow the pattern: organization_id, data_source_id, date, metric_fields, normalized (boolean), created_at, updated_at?
+Where should data source configurations live? Should we create a data_source_configs table or store settings in environment variables?
+What fields define a data source record—name, type, status, organization_id, api_endpoint, last_sync, etc.?
+What interface should our simulated connectors implement? Can we use the existing connector base class, or do we need to create a new one for this demo?
+Should the CSV-to-database flow bypass the connector layer entirely, or should it simulate the full API flow (load CSV → transform to API response format → run through connector)?
+What transformation library should we use for field mapping? Do you already have a standard pattern for mapping external API fields to our normalized schema?
+How do engines currently query the database? Are you using an ORM, raw SQL, or a query builder abstraction?
+For cross-channel analysis (where engines need to correlate data from multiple sources), do engines query multiple tables and join in code, or should we create a denormalized unified_metrics view?
+What should the output schema look like for engine results? Should they include references back to which metric IDs or date ranges they analyzed?
+What anomaly detection algorithm do you currently use? Is it based on standard deviation, IQR, statistical control limits, or something more sophisticated?
+What thresholds determine severity levels? For example, should >50% change = CRITICAL, 25-50% change = WARNING, 10-25% change = INFO?
+How far back should anomaly detection look for a baseline? Should it use the past 3 months, past year, or a rolling 12-month comparison?
+What’s your minimum correlation threshold for identifying significant relationships? Should we flag correlations above 0.7, 0.8, or something else?
+Should the correlation engine detect lagged correlations (where one metric leads another by weeks or months), or just correlations within the same period?
+How should the diagnostics engine calculate health scores compared to targets? Should it use variance percentage, trend analysis, composite scoring, or a combination?
+What triggers the recommendation engine? Should it activate on detected anomalies only, or also when metrics drift from 2026 targets?
+How specific should recommendations be? Should they be generic (“increase marketing spend”) or targeted to the specific anomaly (“increase Google Ads by 40% based on Q3 conversion decline”)?
+What’s the optimal order to import the five data sources? Should we start with GA4 (website foundation), then ads, then CRM? Or should they all load in parallel?
+Should connectors run sequentially (GA4 completes → Google Ads starts → etc.) or simultaneously (all five running in parallel)?
+How should we handle missing or incomplete data in the CSV import? Should missing months be filled with zeros, skipped entirely, or flagged as errors?
+Should we validate metric ranges to catch bad data? For example, conversion rates should be 0-100%, not 250%?
+Do we need database indexes on organization_id, data_source_id, and date fields? Or should we wait to add indexing after we see query patterns?
+Can all analytics engines run simultaneously against the same dataset, or should they execute in a specific sequence to avoid resource conflicts?
+What’s the ideal demo flow to showcase this to stakeholders? Should it be: query database → run connector sync → verify populated tables → run engines → display recommendations?
+What should we show first to make the biggest impact? Should we lead with the Q3 anomaly detection to show the system identified the dramatic downturn?

@@ -1,0 +1,31 @@
+Excellent answers—you’ve locked down the architecture. Here’s my response:
+On the hybrid storage approach (columns + JSONB): That’s exactly right. Use explicit columns for metrics we query/analyze frequently, JSONB for flexible/optional fields. This lets engines query efficiently while staying flexible.
+On platform distinction (Google Ads vs Meta Ads): Perfect—the existing `platform` field in metricsAds is the right call. Single table, filtered by platform. This makes cross-channel correlation analysis straightforward.
+On bypassing connectors for CSV import: Agree. We’re testing the analytics engines, not the connector transformation layer. The CSVs are already normalized. Direct insert to tables is fastest path to validation.
+On Drizzle ORM queries: Good. Keep using `db.query.*` for reads, that’s consistent with existing patterns.
+On cross-channel joins in code: Fine for now. The unified_metrics view can be a performance optimization later. For demo purposes, querying multiple tables and joining in code is acceptable.
+On anomaly detection (Z-score, 2σ = CRITICAL, etc.): Strong defaults. This will catch the Q3 dip perfectly (50%+ drop is definitely >2σ). The rolling 12-month baseline + same-period-last-year is smart.
+On correlation threshold (0.7+) and lagged correlations (up to 3 months): Yes, both. The 3-month lag window will catch things like “ad spend drop in July → leads drop in August” patterns.
+On parallel import with no cross-table dependencies: Correct. Import all 5 data sources simultaneously.
+On validation (flag missing, validate ranges, indexes already in place): Perfect.
+On demo flow (show integrations → query database → run engines → lead with Q3 anomaly → show recommendations): Exactly. Start with “here’s the data that populated” → “here’s what the system detected” → “here’s what we should do about it.”
+On missing metricsEmail table: Create Option A—new metricsEmail table. Keep it separate because:
+	•	Email campaigns have different grain (campaign-level + subscriber-level aggregates)
+	•	Email metrics are distinct (opens, clicks, bounces, unsubscribes) vs CRM pipeline metrics
+	•	Engines will need to correlate email performance to leads/revenue separately
+	•	Makes queries cleaner: don’t need to filter by metric type within metricsCrm
+Schema for metricsEmail:
+id, organizationId, integrationId, metricDate, 
+totalEmailsSent, delivered, bounced, opens, uniqueOpens, 
+clicks, uniqueClicks, conversions, unsubscribes, subscribers,
+campaignType, createdAt
+
+Next steps: Build the metricsEmail table, then we’re ready to:
+	1.	Run CSV imports to all 5 tables (GA4, Google Ads, Meta Ads, CRM, Email)
+	2.	Verify data populated correctly
+	3.	Execute anomaly detection on the Q3 data
+	4.	Run correlation analysis
+	5.	Generate recommendations
+	6.	Show the demo flow
+
+Whats the new plan here now?
