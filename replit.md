@@ -61,7 +61,17 @@ A comprehensive SaaS analytics platform built with React, Express, TypeScript, a
 │       ├── time_series.py
 │       ├── regression_summary.py
 │       ├── decomposition.py
-│       └── aggregation.py
+│       ├── aggregation.py
+│       ├── shap_feature_importance.py      # Phase 4: SHAP-based feature importance
+│       ├── permutation_importance.py       # Phase 4: Permutation-based importance
+│       ├── causal_effect_estimation.py     # Phase 4: ATE/HTE causal effects
+│       ├── logistic_classifier.py          # Phase 4: Logistic Regression
+│       ├── random_forest_classifier.py     # Phase 4: Random Forest
+│       ├── xgboost_classifier.py           # Phase 4: XGBoost
+│       ├── svm_classifier.py               # Phase 4: SVM
+│       ├── classification_ensemble.py      # Phase 4: Weighted ensemble
+│       ├── propensity_scores.py            # Phase 4: Propensity scoring
+│       └── ranked_feature_importances.py   # Phase 4: Unified rankings
 ├── shared/
 │   └── schema.ts        # Database schema (Drizzle)
 └── design_guidelines.md # UI/UX design specifications
@@ -226,3 +236,10 @@ After running this, log out and log back in to see the Admin Panel in the sideba
   - 6 statistical operators: descriptive stats, correlation matrix, trend detection, time series, regression summary, decomposition
   - Aggregation operator for combining insights
   - Generates executive summaries and actionable recommendations
+- Added Propensity Engine (Phase 4 - Predictive Targeting)
+  - Feature Importance Module: SHAP values, permutation importance, causal effect estimation (ATE/HTE)
+  - Binary Classification Module: 4 parallel classifiers (Logistic, Random Forest, XGBoost, SVM)
+  - Classification Ensemble: ROC-AUC weighted averaging with isotonic probability calibration
+  - Propensity Scores: Calibrated scores with segment-level effect sizes and targeting recommendations
+  - Ranked Feature Importances: Unified ranking combining SHAP/permutation/causal signals
+  - DAG with 11 tasks running parallel feature importance and classification streams
