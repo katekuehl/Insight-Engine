@@ -184,6 +184,155 @@ export const RELATIONSHIP_ENGINE_TASKS: Omit<InsertDagTask, "dagId">[] = [
 ];
 
 /**
+ * Impact Engine DAG - Phase 2
+ * Diagnostic analytics: "Why did it happen?" and "What should we do?"
+ * Depends on Phase 1 (Relationship Engine) completion
+ */
+export const IMPACT_ENGINE_DAG: InsertDag = {
+  dagId: "impact_engine",
+  displayName: "Impact Engine Analysis",
+  description: "Diagnostic analytics with group comparison, model diagnostics, attribution modeling, and residual analysis. Answers 'why did it happen?' and 'what should we do?'",
+  schedule: null, // Triggered after Phase 1 completes
+  isActive: true,
+  defaultConfig: {
+    dependsOn: "relationship_engine", // Phase 1 must complete first
+    significanceLevel: 0.05,
+    kFolds: 5,
+    attributionModels: ["first_touch", "last_touch", "linear", "time_decay", "position_based", "shapley"],
+  },
+};
+
+export const IMPACT_ENGINE_TASKS: Omit<InsertDagTask, "dagId">[] = [
+  // All 4 diagnostic modules run in parallel (after Phase 1 data is available)
+  {
+    taskId: "group_comparison",
+    displayName: "Group Comparison",
+    operatorType: "group_comparison",
+    operatorConfig: {
+      metrics: ["sessions", "conversions", "revenue", "bounce_rate"],
+      significanceLevel: 0.05,
+    },
+    upstreamTaskIds: [], // No upstream in this DAG - assumes Phase 1 data available
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 900,
+  },
+  {
+    taskId: "model_diagnostics",
+    displayName: "Model Diagnostics",
+    operatorType: "model_diagnostics",
+    operatorConfig: {
+      kFolds: 5,
+      significanceLevel: 0.05,
+    },
+    upstreamTaskIds: [],
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 900,
+  },
+  {
+    taskId: "attribution_modeling",
+    displayName: "Attribution Modeling",
+    operatorType: "attribution_modeling",
+    operatorConfig: {
+      models: ["first_touch", "last_touch", "linear", "time_decay", "position_based", "shapley"],
+      decayRate: 0.7,
+    },
+    upstreamTaskIds: [],
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 1200, // Shapley can be slow
+  },
+  {
+    taskId: "residual_diagnostics",
+    displayName: "Residual Diagnostics",
+    operatorType: "residual_diagnostics",
+    operatorConfig: {
+      nClusters: 3,
+      dbscanEps: 0.5,
+      dbscanMinSamples: 5,
+    },
+    upstreamTaskIds: [],
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 900,
+  },
+  // Intermediate aggregation: Group Comparison Statistics
+  {
+    taskId: "group_comparison_stats",
+    displayName: "Group Comparison Statistics",
+    operatorType: "passthrough",
+    operatorConfig: {
+      collectFrom: ["group_comparison"],
+      outputKey: "group_comparison_statistics",
+    },
+    upstreamTaskIds: ["group_comparison"],
+    retryCount: 1,
+    retryDelaySeconds: 10,
+    timeoutSeconds: 60,
+  },
+  // Intermediate aggregation: Attribution Weights & Value Allocation
+  {
+    taskId: "attribution_weights",
+    displayName: "Attribution Weights & Value Allocation",
+    operatorType: "passthrough",
+    operatorConfig: {
+      collectFrom: ["attribution_modeling"],
+      outputKey: "attribution_weights",
+    },
+    upstreamTaskIds: ["attribution_modeling"],
+    retryCount: 1,
+    retryDelaySeconds: 10,
+    timeoutSeconds: 60,
+  },
+  // Intermediate aggregation: Residual Diagnostics Summary
+  {
+    taskId: "residual_summary",
+    displayName: "Residual Diagnostics Summary",
+    operatorType: "passthrough",
+    operatorConfig: {
+      collectFrom: ["residual_diagnostics", "model_diagnostics"],
+      outputKey: "residual_summary",
+    },
+    upstreamTaskIds: ["residual_diagnostics", "model_diagnostics"],
+    retryCount: 1,
+    retryDelaySeconds: 10,
+    timeoutSeconds: 60,
+  },
+  // Phase 2 Aggregation - combines all diagnostic outputs
+  {
+    taskId: "phase2_aggregation",
+    displayName: "Phase 2 Aggregation",
+    operatorType: "phase2_aggregation",
+    operatorConfig: {
+      combineInsights: true,
+      generateRecommendations: true,
+    },
+    upstreamTaskIds: [
+      "group_comparison_stats",
+      "attribution_weights",
+      "residual_summary",
+    ],
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 300,
+  },
+  // Completion marker
+  {
+    taskId: "complete",
+    displayName: "Mark Complete",
+    operatorType: "completion_marker",
+    operatorConfig: {
+      outputType: "impact_engine",
+    },
+    upstreamTaskIds: ["phase2_aggregation"],
+    retryCount: 1,
+    retryDelaySeconds: 10,
+    timeoutSeconds: 60,
+  },
+];
+
+/**
  * Seed all DAG definitions into the database
  */
 export async function seedDags(): Promise<void> {
@@ -221,6 +370,23 @@ export async function seedDags(): Promise<void> {
     console.log(`Created ${tasks.length} tasks for ${relationshipEngineDag.dagId}`);
   } else {
     console.log(`DAG already exists: ${relationshipEngineDag.dagId}`);
+  }
+  
+  // Seed Impact Engine DAG (Phase 2)
+  let impactEngineDag = await storage.getDagByDagId(IMPACT_ENGINE_DAG.dagId);
+  if (!impactEngineDag) {
+    impactEngineDag = await storage.createDag(IMPACT_ENGINE_DAG);
+    console.log(`Created DAG: ${impactEngineDag.dagId}`);
+    
+    // Create tasks
+    const tasks = IMPACT_ENGINE_TASKS.map(task => ({
+      ...task,
+      dagId: impactEngineDag!.id,
+    }));
+    await storage.createDagTasks(tasks);
+    console.log(`Created ${tasks.length} tasks for ${impactEngineDag.dagId}`);
+  } else {
+    console.log(`DAG already exists: ${impactEngineDag.dagId}`);
   }
   
   console.log("DAG seeding complete!");

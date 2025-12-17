@@ -50,9 +50,10 @@ export class DagExecutor {
     this.registerOperator("python_http", this.createPythonHttpOperator());
     this.registerOperator("data_ingestion", this.createDataIngestionOperator());
     this.registerOperator("completion_marker", this.createCompletionMarkerOperator());
+    this.registerOperator("passthrough", this.createPassthroughOperator());
     
-    // Analytical operators - all call Python service
-    const analyticalOperators = [
+    // Phase 1: Relationship Engine operators - all call Python service
+    const phase1Operators = [
       "descriptive_stats",
       "correlation_matrix",
       "trend_detection",
@@ -62,7 +63,18 @@ export class DagExecutor {
       "aggregation",
     ];
     
-    for (const op of analyticalOperators) {
+    // Phase 2: Impact Engine operators - all call Python service
+    const phase2Operators = [
+      "group_comparison",
+      "model_diagnostics",
+      "attribution_modeling",
+      "residual_diagnostics",
+      "phase2_aggregation",
+    ];
+    
+    const allAnalyticalOperators = [...phase1Operators, ...phase2Operators];
+    
+    for (const op of allAnalyticalOperators) {
       this.registerOperator(op, this.createAnalyticalOperator(op));
     }
   }
@@ -181,6 +193,31 @@ export class DagExecutor {
       return {
         success: true,
         output: { status: "complete", completedAt: new Date().toISOString() },
+      };
+    };
+  }
+
+  private createPassthroughOperator(): OperatorExecutor {
+    return async (taskInstance, dagRun, config, upstreamXcom) => {
+      // Passthrough operator: collects upstream data and passes it through
+      // Used for intermediate aggregation nodes in the DAG
+      const collectFrom = config.collectFrom as string[] || [];
+      const outputKey = config.outputKey as string || "passthrough";
+      
+      const collected: Record<string, unknown> = {};
+      for (const key of collectFrom) {
+        if (upstreamXcom[key]) {
+          collected[key] = upstreamXcom[key];
+        }
+      }
+      
+      return {
+        success: true,
+        output: {
+          [outputKey]: collected,
+          collectedFrom: collectFrom,
+          timestamp: new Date().toISOString(),
+        },
       };
     };
   }

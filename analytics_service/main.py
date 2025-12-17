@@ -16,11 +16,16 @@ from operators.regression_summary import RegressionSummaryOperator
 from operators.decomposition import DecompositionOperator
 from operators.aggregation import AggregationOperator
 from operators.prepare_data import PrepareDataOperator
+from operators.group_comparison import GroupComparisonOperator
+from operators.model_diagnostics import ModelDiagnosticsOperator
+from operators.attribution_modeling import AttributionModelingOperator
+from operators.residual_diagnostics import ResidualDiagnosticsOperator
+from operators.phase2_aggregation import Phase2AggregationOperator
 
 app = FastAPI(
     title="Strata Analytics Service",
-    description="Statistical analysis operators for the Relationship Engine",
-    version="1.0.0"
+    description="Statistical analysis operators for Phase 1 (Relationship Engine) and Phase 2 (Impact Engine)",
+    version="2.0.0"
 )
 
 class OperatorRequest(BaseModel):
@@ -36,7 +41,7 @@ class OperatorResponse(BaseModel):
     error: Optional[str] = None
     logs: Optional[str] = None
 
-# Initialize operators
+# Initialize Phase 1 operators
 prepare_data_op = PrepareDataOperator()
 descriptive_stats_op = DescriptiveStatsOperator()
 correlation_matrix_op = CorrelationMatrixOperator()
@@ -45,6 +50,13 @@ time_series_op = TimeSeriesOperator()
 regression_summary_op = RegressionSummaryOperator()
 decomposition_op = DecompositionOperator()
 aggregation_op = AggregationOperator()
+
+# Initialize Phase 2 operators
+group_comparison_op = GroupComparisonOperator()
+model_diagnostics_op = ModelDiagnosticsOperator()
+attribution_modeling_op = AttributionModelingOperator()
+residual_diagnostics_op = ResidualDiagnosticsOperator()
+phase2_aggregation_op = Phase2AggregationOperator()
 
 @app.get("/health")
 async def health_check():
@@ -145,6 +157,96 @@ async def run_aggregation(request: OperatorRequest):
         return OperatorResponse(success=True, output=result)
     except Exception as e:
         return OperatorResponse(success=False, error=str(e))
+
+
+# ============================================================
+# Phase 2: Impact Engine Operators
+# ============================================================
+
+@app.post("/operators/group_comparison", response_model=OperatorResponse)
+async def run_group_comparison(request: OperatorRequest):
+    """
+    Group Comparison Module: t-tests, ANOVA, Kruskal-Wallis, effect sizes
+    Compares metrics across customer segments to find significant differences.
+    """
+    try:
+        result = await group_comparison_op.execute(
+            organization_id=request.organization_id,
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/model_diagnostics", response_model=OperatorResponse)
+async def run_model_diagnostics(request: OperatorRequest):
+    """
+    Model Diagnostics Module: residual analysis, Q-Q plots, Durbin-Watson,
+    Shapiro-Wilk, cross-validation for overfitting detection.
+    """
+    try:
+        result = await model_diagnostics_op.execute(
+            organization_id=request.organization_id,
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/attribution_modeling", response_model=OperatorResponse)
+async def run_attribution_modeling(request: OperatorRequest):
+    """
+    Attribution Modeling Module: first/last/linear/time-decay/position-based
+    touch attribution plus Shapley values for fair channel credit allocation.
+    """
+    try:
+        result = await attribution_modeling_op.execute(
+            organization_id=request.organization_id,
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/residual_diagnostics", response_model=OperatorResponse)
+async def run_residual_diagnostics(request: OperatorRequest):
+    """
+    Residual Diagnostics Module: K-means/DBSCAN clustering of residuals,
+    pattern analysis, systematic bias detection, improvement recommendations.
+    """
+    try:
+        result = await residual_diagnostics_op.execute(
+            organization_id=request.organization_id,
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/phase2_aggregation", response_model=OperatorResponse)
+async def run_phase2_aggregation(request: OperatorRequest):
+    """
+    Phase 2 Aggregation: Combines all Impact Engine module outputs into
+    a unified diagnostic report with business insights and recommendations.
+    """
+    try:
+        result = await phase2_aggregation_op.execute(
+            organization_id=request.organization_id,
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
 
 if __name__ == "__main__":
     import uvicorn
