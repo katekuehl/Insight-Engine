@@ -467,6 +467,196 @@ export const FORECAST_ENGINE_TASKS: Omit<InsertDagTask, "dagId">[] = [
 ];
 
 /**
+ * Propensity Engine DAG - Phase 4
+ * Predictive targeting: "Who should we target?" and "What features drive outcomes?"
+ * Depends on Phase 3 (Forecast Engine) completion
+ */
+export const PROPENSITY_ENGINE_DAG: InsertDag = {
+  dagId: "propensity_engine",
+  displayName: "Propensity Engine Analysis",
+  description: "Feature importance, binary classification with 4 algorithms, propensity scoring, and business targeting recommendations.",
+  schedule: null, // Triggered after Phase 3 completes
+  isActive: true,
+  defaultConfig: {
+    dependsOn: "forecast_engine", // Phase 3 must complete first
+    highPropensityThreshold: 0.7,
+    lowPropensityThreshold: 0.3,
+    ensembleWeighting: "roc_auc",
+  },
+};
+
+export const PROPENSITY_ENGINE_TASKS: Omit<InsertDagTask, "dagId">[] = [
+  // Feature Importance Module - 3 parallel tasks
+  {
+    taskId: "shap_feature_importance",
+    displayName: "SHAP Feature Importance",
+    operatorType: "shap_feature_importance",
+    operatorConfig: {
+      n_samples: 100,
+      max_features: 20,
+      explainer_type: "tree",
+    },
+    upstreamTaskIds: [],
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 600,
+  },
+  {
+    taskId: "permutation_importance",
+    displayName: "Permutation Importance",
+    operatorType: "permutation_importance",
+    operatorConfig: {
+      n_repeats: 10,
+      scoring: "accuracy",
+      max_features: 20,
+    },
+    upstreamTaskIds: [],
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 300,
+  },
+  {
+    taskId: "causal_effect_estimation",
+    displayName: "Causal Effect Estimation",
+    operatorType: "causal_effect_estimation",
+    operatorConfig: {
+      n_strata: 5,
+      confidence_level: 0.95,
+    },
+    upstreamTaskIds: [],
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 300,
+  },
+  // Binary Classification Module - 4 parallel classifiers
+  {
+    taskId: "logistic_classifier",
+    displayName: "Logistic Regression",
+    operatorType: "logistic_classifier",
+    operatorConfig: {
+      regularization: "l2",
+      C: 1.0,
+      cv_folds: 5,
+    },
+    upstreamTaskIds: [],
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 300,
+  },
+  {
+    taskId: "random_forest_classifier",
+    displayName: "Random Forest",
+    operatorType: "random_forest_classifier",
+    operatorConfig: {
+      n_estimators: 100,
+      max_depth: 10,
+      cv_folds: 5,
+    },
+    upstreamTaskIds: [],
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 300,
+  },
+  {
+    taskId: "xgboost_classifier",
+    displayName: "XGBoost",
+    operatorType: "xgboost_classifier",
+    operatorConfig: {
+      n_estimators: 100,
+      max_depth: 6,
+      learning_rate: 0.1,
+      cv_folds: 5,
+    },
+    upstreamTaskIds: [],
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 300,
+  },
+  {
+    taskId: "svm_classifier",
+    displayName: "SVM Classifier",
+    operatorType: "svm_classifier",
+    operatorConfig: {
+      kernel: "rbf",
+      C: 1.0,
+      cv_folds: 5,
+    },
+    upstreamTaskIds: [],
+    retryCount: 2,
+    retryDelaySeconds: 60,
+    timeoutSeconds: 600, // SVM can be slow
+  },
+  // Classification ensemble - combines all 4 classifiers
+  {
+    taskId: "classification_ensemble",
+    displayName: "Classification Ensemble",
+    operatorType: "classification_ensemble",
+    operatorConfig: {
+      weighting: "roc_auc",
+      calibration: "isotonic",
+      min_models: 2,
+    },
+    upstreamTaskIds: [
+      "logistic_classifier",
+      "random_forest_classifier",
+      "xgboost_classifier",
+      "svm_classifier",
+    ],
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 120,
+  },
+  // Propensity Scores - combines ensemble with causal effects
+  {
+    taskId: "propensity_scores",
+    displayName: "Propensity Scores & Effect Sizes",
+    operatorType: "propensity_scores",
+    operatorConfig: {
+      score_bins: 10,
+      high_propensity_threshold: 0.7,
+      low_propensity_threshold: 0.3,
+    },
+    upstreamTaskIds: ["classification_ensemble", "causal_effect_estimation"],
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 120,
+  },
+  // Ranked Feature Importances - combines all importance methods
+  {
+    taskId: "ranked_feature_importances",
+    displayName: "Ranked Feature Importances",
+    operatorType: "ranked_feature_importances",
+    operatorConfig: {
+      shap_weight: 0.4,
+      permutation_weight: 0.4,
+      causal_weight: 0.2,
+      max_features: 20,
+    },
+    upstreamTaskIds: [
+      "shap_feature_importance",
+      "permutation_importance",
+      "causal_effect_estimation",
+    ],
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 120,
+  },
+  // Completion marker
+  {
+    taskId: "complete",
+    displayName: "Mark Complete",
+    operatorType: "completion_marker",
+    operatorConfig: {
+      outputType: "propensity_engine",
+    },
+    upstreamTaskIds: ["propensity_scores", "ranked_feature_importances"],
+    retryCount: 1,
+    retryDelaySeconds: 10,
+    timeoutSeconds: 60,
+  },
+];
+
+/**
  * Seed all DAG definitions into the database
  */
 export async function seedDags(): Promise<void> {
@@ -538,6 +728,23 @@ export async function seedDags(): Promise<void> {
     console.log(`Created ${tasks.length} tasks for ${forecastEngineDag.dagId}`);
   } else {
     console.log(`DAG already exists: ${forecastEngineDag.dagId}`);
+  }
+  
+  // Seed Propensity Engine DAG (Phase 4)
+  let propensityEngineDag = await storage.getDagByDagId(PROPENSITY_ENGINE_DAG.dagId);
+  if (!propensityEngineDag) {
+    propensityEngineDag = await storage.createDag(PROPENSITY_ENGINE_DAG);
+    console.log(`Created DAG: ${propensityEngineDag.dagId}`);
+    
+    // Create tasks
+    const tasks = PROPENSITY_ENGINE_TASKS.map(task => ({
+      ...task,
+      dagId: propensityEngineDag!.id,
+    }));
+    await storage.createDagTasks(tasks);
+    console.log(`Created ${tasks.length} tasks for ${propensityEngineDag.dagId}`);
+  } else {
+    console.log(`DAG already exists: ${propensityEngineDag.dagId}`);
   }
   
   console.log("DAG seeding complete!");

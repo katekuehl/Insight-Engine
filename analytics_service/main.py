@@ -27,11 +27,21 @@ from operators.lstm_forecast import LSTMForecastOperator
 from operators.exponential_smoothing import ExponentialSmoothingOperator
 from operators.ensemble_aggregation import EnsembleAggregationOperator
 from operators.forecast_outputs import ForecastOutputsOperator
+from operators.shap_feature_importance import shap_feature_importance_op
+from operators.permutation_importance import permutation_importance_op
+from operators.causal_effect_estimation import causal_effect_estimation_op
+from operators.logistic_classifier import logistic_classifier_op
+from operators.random_forest_classifier import random_forest_classifier_op
+from operators.xgboost_classifier import xgboost_classifier_op
+from operators.svm_classifier import svm_classifier_op
+from operators.classification_ensemble import classification_ensemble_op
+from operators.propensity_scores import propensity_scores_op
+from operators.ranked_feature_importances import ranked_feature_importances_op
 
 app = FastAPI(
     title="Strata Analytics Service",
-    description="Statistical analysis operators for Phase 1 (Relationship Engine), Phase 2 (Impact Engine), and Phase 3 (Forecast Engine)",
-    version="3.0.0"
+    description="Statistical analysis operators for Phase 1-4: Relationship Engine, Impact Engine, Forecast Engine, and Propensity Engine",
+    version="4.0.0"
 )
 
 class OperatorRequest(BaseModel):
@@ -361,6 +371,180 @@ async def run_forecast_outputs(request: OperatorRequest):
     try:
         result = await forecast_outputs_op.execute(
             organization_id=request.organization_id,
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+# ============================================================
+# Phase 4: Propensity Engine Operators
+# ============================================================
+
+@app.post("/operators/shap_feature_importance", response_model=OperatorResponse)
+async def run_shap_feature_importance(request: OperatorRequest):
+    """
+    SHAP Feature Importance: Game-theory based feature attribution
+    using Shapley values for fair importance allocation.
+    """
+    try:
+        result = await shap_feature_importance_op.execute(
+            organization_id=int(request.organization_id),
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/permutation_importance", response_model=OperatorResponse)
+async def run_permutation_importance(request: OperatorRequest):
+    """
+    Permutation Importance: Model-agnostic feature ranking by
+    measuring prediction degradation when features are shuffled.
+    """
+    try:
+        result = await permutation_importance_op.execute(
+            organization_id=int(request.organization_id),
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/causal_effect_estimation", response_model=OperatorResponse)
+async def run_causal_effect_estimation(request: OperatorRequest):
+    """
+    Causal Effect Estimation: ATE/HTE computation using propensity
+    score stratification and doubly robust estimation.
+    """
+    try:
+        result = await causal_effect_estimation_op.execute(
+            organization_id=int(request.organization_id),
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/logistic_classifier", response_model=OperatorResponse)
+async def run_logistic_classifier(request: OperatorRequest):
+    """
+    Logistic Regression: Interpretable baseline classifier with
+    coefficients and odds ratios for feature interpretation.
+    """
+    try:
+        result = await logistic_classifier_op.execute(
+            organization_id=int(request.organization_id),
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/random_forest_classifier", response_model=OperatorResponse)
+async def run_random_forest_classifier(request: OperatorRequest):
+    """
+    Random Forest: Ensemble of decision trees capturing complex
+    feature interactions with native feature importance.
+    """
+    try:
+        result = await random_forest_classifier_op.execute(
+            organization_id=int(request.organization_id),
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/xgboost_classifier", response_model=OperatorResponse)
+async def run_xgboost_classifier(request: OperatorRequest):
+    """
+    XGBoost: Gradient boosting with regularization for
+    best-in-class predictive performance.
+    """
+    try:
+        result = await xgboost_classifier_op.execute(
+            organization_id=int(request.organization_id),
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/svm_classifier", response_model=OperatorResponse)
+async def run_svm_classifier(request: OperatorRequest):
+    """
+    SVM: Support Vector Machine robust to outliers with
+    kernel flexibility for nonlinear boundaries.
+    """
+    try:
+        result = await svm_classifier_op.execute(
+            organization_id=int(request.organization_id),
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/classification_ensemble", response_model=OperatorResponse)
+async def run_classification_ensemble(request: OperatorRequest):
+    """
+    Classification Ensemble: Weighted average of all 4 classifiers
+    with probability calibration (isotonic/Platt scaling).
+    """
+    try:
+        result = await classification_ensemble_op.execute(
+            organization_id=int(request.organization_id),
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/propensity_scores", response_model=OperatorResponse)
+async def run_propensity_scores(request: OperatorRequest):
+    """
+    Propensity Scores: Calibrated scores with segment-level
+    effect sizes for business targeting recommendations.
+    """
+    try:
+        result = await propensity_scores_op.execute(
+            organization_id=int(request.organization_id),
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/ranked_feature_importances", response_model=OperatorResponse)
+async def run_ranked_feature_importances(request: OperatorRequest):
+    """
+    Ranked Feature Importances: Unified ranking combining SHAP,
+    permutation, and causal importance methods.
+    """
+    try:
+        result = await ranked_feature_importances_op.execute(
+            organization_id=int(request.organization_id),
             config=request.config,
             upstream_data=request.upstream_data
         )

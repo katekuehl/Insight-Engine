@@ -82,7 +82,21 @@ export class DagExecutor {
       "forecast_outputs",
     ];
     
-    const allAnalyticalOperators = [...phase1Operators, ...phase2Operators, ...phase3Operators];
+    // Phase 4: Propensity Engine operators - all call Python service
+    const phase4Operators = [
+      "shap_feature_importance",
+      "permutation_importance",
+      "causal_effect_estimation",
+      "logistic_classifier",
+      "random_forest_classifier",
+      "xgboost_classifier",
+      "svm_classifier",
+      "classification_ensemble",
+      "propensity_scores",
+      "ranked_feature_importances",
+    ];
+    
+    const allAnalyticalOperators = [...phase1Operators, ...phase2Operators, ...phase3Operators, ...phase4Operators];
     
     for (const op of allAnalyticalOperators) {
       this.registerOperator(op, this.createAnalyticalOperator(op));
