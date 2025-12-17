@@ -333,6 +333,140 @@ export const IMPACT_ENGINE_TASKS: Omit<InsertDagTask, "dagId">[] = [
 ];
 
 /**
+ * Forecast Engine DAG - Phase 3
+ * Predictive analytics: "What will happen?" and "How confident are we?"
+ * Depends on Phase 2 (Impact Engine) completion
+ */
+export const FORECAST_ENGINE_DAG: InsertDag = {
+  dagId: "forecast_engine",
+  displayName: "Forecast Engine Analysis",
+  description: "Ensemble forecasting with ARIMA, Prophet, LSTM, and Exponential Smoothing. Generates point forecasts, confidence intervals, and anomaly alerts.",
+  schedule: null, // Triggered after Phase 2 completes
+  isActive: true,
+  defaultConfig: {
+    dependsOn: "impact_engine", // Phase 2 must complete first
+    forecastHorizon: 30,
+    confidenceLevels: [0.95, 0.99],
+    ensembleWeighting: "mape", // Weight by inverse MAPE
+  },
+};
+
+export const FORECAST_ENGINE_TASKS: Omit<InsertDagTask, "dagId">[] = [
+  // All 4 forecasting algorithms run in parallel
+  {
+    taskId: "arima_forecast",
+    displayName: "ARIMA Forecast",
+    operatorType: "arima_forecast",
+    operatorConfig: {
+      forecastHorizon: 30,
+      autoOrder: true,
+      confidenceLevel: 0.95,
+    },
+    upstreamTaskIds: [], // No upstream in this DAG - assumes Phase 2 data available
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 600, // 10 min for order search
+  },
+  {
+    taskId: "prophet_forecast",
+    displayName: "Prophet Forecast",
+    operatorType: "prophet_forecast",
+    operatorConfig: {
+      forecastHorizon: 30,
+      yearlySeasonality: true,
+      weeklySeasonality: true,
+      confidenceLevel: 0.95,
+    },
+    upstreamTaskIds: [],
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 300, // 5 min typical
+  },
+  {
+    taskId: "lstm_forecast",
+    displayName: "LSTM Forecast",
+    operatorType: "lstm_forecast",
+    operatorConfig: {
+      forecastHorizon: 30,
+      lookback: 60,
+      hiddenSize: 64,
+      numLayers: 2,
+      epochs: 50,
+      dropout: 0.2,
+      confidenceLevel: 0.95,
+    },
+    upstreamTaskIds: [],
+    retryCount: 2,
+    retryDelaySeconds: 60,
+    timeoutSeconds: 900, // 15 min for training
+  },
+  {
+    taskId: "exponential_smoothing",
+    displayName: "Exponential Smoothing",
+    operatorType: "exponential_smoothing",
+    operatorConfig: {
+      forecastHorizon: 30,
+      seasonalPeriod: 7,
+      trend: "add",
+      seasonal: "add",
+      dampedTrend: true,
+      confidenceLevel: 0.95,
+    },
+    upstreamTaskIds: [],
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 300,
+  },
+  // Ensemble aggregation - combines all 4 models
+  {
+    taskId: "ensemble_aggregation",
+    displayName: "Ensemble Aggregation",
+    operatorType: "ensemble_aggregation",
+    operatorConfig: {
+      weightingMetric: "mape",
+      minModels: 2,
+    },
+    upstreamTaskIds: [
+      "arima_forecast",
+      "prophet_forecast",
+      "lstm_forecast",
+      "exponential_smoothing",
+    ],
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 120,
+  },
+  // Forecast outputs - final packaging
+  {
+    taskId: "forecast_outputs",
+    displayName: "Forecast Outputs",
+    operatorType: "forecast_outputs",
+    operatorConfig: {
+      confidenceLevels: [0.95, 0.99],
+      anomalyThreshold: 2.0,
+      generateAlerts: true,
+    },
+    upstreamTaskIds: ["ensemble_aggregation"],
+    retryCount: 2,
+    retryDelaySeconds: 30,
+    timeoutSeconds: 120,
+  },
+  // Completion marker
+  {
+    taskId: "complete",
+    displayName: "Mark Complete",
+    operatorType: "completion_marker",
+    operatorConfig: {
+      outputType: "forecast_engine",
+    },
+    upstreamTaskIds: ["forecast_outputs"],
+    retryCount: 1,
+    retryDelaySeconds: 10,
+    timeoutSeconds: 60,
+  },
+];
+
+/**
  * Seed all DAG definitions into the database
  */
 export async function seedDags(): Promise<void> {
@@ -387,6 +521,23 @@ export async function seedDags(): Promise<void> {
     console.log(`Created ${tasks.length} tasks for ${impactEngineDag.dagId}`);
   } else {
     console.log(`DAG already exists: ${impactEngineDag.dagId}`);
+  }
+  
+  // Seed Forecast Engine DAG (Phase 3)
+  let forecastEngineDag = await storage.getDagByDagId(FORECAST_ENGINE_DAG.dagId);
+  if (!forecastEngineDag) {
+    forecastEngineDag = await storage.createDag(FORECAST_ENGINE_DAG);
+    console.log(`Created DAG: ${forecastEngineDag.dagId}`);
+    
+    // Create tasks
+    const tasks = FORECAST_ENGINE_TASKS.map(task => ({
+      ...task,
+      dagId: forecastEngineDag!.id,
+    }));
+    await storage.createDagTasks(tasks);
+    console.log(`Created ${tasks.length} tasks for ${forecastEngineDag.dagId}`);
+  } else {
+    console.log(`DAG already exists: ${forecastEngineDag.dagId}`);
   }
   
   console.log("DAG seeding complete!");

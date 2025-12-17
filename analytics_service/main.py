@@ -21,11 +21,17 @@ from operators.model_diagnostics import ModelDiagnosticsOperator
 from operators.attribution_modeling import AttributionModelingOperator
 from operators.residual_diagnostics import ResidualDiagnosticsOperator
 from operators.phase2_aggregation import Phase2AggregationOperator
+from operators.arima_forecast import ARIMAForecastOperator
+from operators.prophet_forecast import ProphetForecastOperator
+from operators.lstm_forecast import LSTMForecastOperator
+from operators.exponential_smoothing import ExponentialSmoothingOperator
+from operators.ensemble_aggregation import EnsembleAggregationOperator
+from operators.forecast_outputs import ForecastOutputsOperator
 
 app = FastAPI(
     title="Strata Analytics Service",
-    description="Statistical analysis operators for Phase 1 (Relationship Engine) and Phase 2 (Impact Engine)",
-    version="2.0.0"
+    description="Statistical analysis operators for Phase 1 (Relationship Engine), Phase 2 (Impact Engine), and Phase 3 (Forecast Engine)",
+    version="3.0.0"
 )
 
 class OperatorRequest(BaseModel):
@@ -57,6 +63,14 @@ model_diagnostics_op = ModelDiagnosticsOperator()
 attribution_modeling_op = AttributionModelingOperator()
 residual_diagnostics_op = ResidualDiagnosticsOperator()
 phase2_aggregation_op = Phase2AggregationOperator()
+
+# Initialize Phase 3 operators
+arima_forecast_op = ARIMAForecastOperator()
+prophet_forecast_op = ProphetForecastOperator()
+lstm_forecast_op = LSTMForecastOperator()
+exponential_smoothing_op = ExponentialSmoothingOperator()
+ensemble_aggregation_op = EnsembleAggregationOperator()
+forecast_outputs_op = ForecastOutputsOperator()
 
 @app.get("/health")
 async def health_check():
@@ -239,6 +253,113 @@ async def run_phase2_aggregation(request: OperatorRequest):
     """
     try:
         result = await phase2_aggregation_op.execute(
+            organization_id=request.organization_id,
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+# ============================================================
+# Phase 3: Forecast Engine Operators
+# ============================================================
+
+@app.post("/operators/arima_forecast", response_model=OperatorResponse)
+async def run_arima_forecast(request: OperatorRequest):
+    """
+    ARIMA Forecasting: AutoRegressive Integrated Moving Average for
+    capturing temporal patterns and autoregressive dependencies.
+    Best for short-term forecasts (1-6 months).
+    """
+    try:
+        result = await arima_forecast_op.execute(
+            organization_id=request.organization_id,
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/prophet_forecast", response_model=OperatorResponse)
+async def run_prophet_forecast(request: OperatorRequest):
+    """
+    Prophet Forecasting: Facebook's algorithm for trend, seasonality
+    (daily/weekly/yearly), and holiday effects. Robust to missing data.
+    """
+    try:
+        result = await prophet_forecast_op.execute(
+            organization_id=request.organization_id,
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/lstm_forecast", response_model=OperatorResponse)
+async def run_lstm_forecast(request: OperatorRequest):
+    """
+    LSTM Forecasting: Recurrent neural networks that capture complex
+    nonlinear temporal dependencies. Best for high-dimensional patterns.
+    """
+    try:
+        result = await lstm_forecast_op.execute(
+            organization_id=request.organization_id,
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/exponential_smoothing", response_model=OperatorResponse)
+async def run_exponential_smoothing(request: OperatorRequest):
+    """
+    Exponential Smoothing: Holt-Winters approach for simple, interpretable
+    forecasting. Adapts quickly to recent changes, robust baseline.
+    """
+    try:
+        result = await exponential_smoothing_op.execute(
+            organization_id=request.organization_id,
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/ensemble_aggregation", response_model=OperatorResponse)
+async def run_ensemble_aggregation(request: OperatorRequest):
+    """
+    Ensemble Aggregation: Weighted average of all 4 forecasting models.
+    Weights determined by cross-validated error metrics (MAPE, RMSE).
+    """
+    try:
+        result = await ensemble_aggregation_op.execute(
+            organization_id=request.organization_id,
+            config=request.config,
+            upstream_data=request.upstream_data
+        )
+        return OperatorResponse(success=True, output=result)
+    except Exception as e:
+        return OperatorResponse(success=False, error=str(e))
+
+
+@app.post("/operators/forecast_outputs", response_model=OperatorResponse)
+async def run_forecast_outputs(request: OperatorRequest):
+    """
+    Forecast Outputs: Packages forecasts with 95%/99% confidence intervals,
+    trend decompositions, anomaly alerts for business consumption.
+    """
+    try:
+        result = await forecast_outputs_op.execute(
             organization_id=request.organization_id,
             config=request.config,
             upstream_data=request.upstream_data

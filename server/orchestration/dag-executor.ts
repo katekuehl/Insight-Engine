@@ -72,7 +72,17 @@ export class DagExecutor {
       "phase2_aggregation",
     ];
     
-    const allAnalyticalOperators = [...phase1Operators, ...phase2Operators];
+    // Phase 3: Forecast Engine operators - all call Python service
+    const phase3Operators = [
+      "arima_forecast",
+      "prophet_forecast",
+      "lstm_forecast",
+      "exponential_smoothing",
+      "ensemble_aggregation",
+      "forecast_outputs",
+    ];
+    
+    const allAnalyticalOperators = [...phase1Operators, ...phase2Operators, ...phase3Operators];
     
     for (const op of allAnalyticalOperators) {
       this.registerOperator(op, this.createAnalyticalOperator(op));
