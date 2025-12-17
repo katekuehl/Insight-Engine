@@ -1,0 +1,45 @@
+Phase 2: Impact Engine is where we move from “what happened?” (Phase 1) to “why did it happen?” and “what should we do?” Here’s the breakdown:
+Phase 2 takes Phase 1’s regression models, correlations, and trends—and adds 4 parallel diagnostic modules:
+	1.	Group Comparison Module (t-test, ANOVA, effect sizes)
+	•	Input: Segmented customer data + Phase 1 metrics
+	•	Output: Group Comparison Statistics (p-values, effect sizes, which groups differ significantly)
+	•	Use case: “Are email customers significantly more valuable than organic?” Answer: Yes/No with statistical confidence.
+	2.	Model Diagnostics Module (residual analysis, cross-validation, outlier detection)
+	•	Input: Phase 1 regression models + residuals
+	•	Output: Diagnostic Metrics (model assumptions validated, overfitting detected, outliers flagged)
+	•	Use case: “Can we trust Phase 1’s LTV prediction model?” Answer: Here’s the health report.
+	3.	Attribution Modeling Module (first/last/linear/time-decay/Shapley value attribution)
+	•	Input: Customer journey data (touchpoint sequences)
+	•	Output: Attribution Weights & Value Allocation (which channel deserves credit, how to allocate budget)
+	•	Use case: “Email drives 15% more conversions when paired with paid search. How much budget should go to email?” Answer: Data-driven allocation across 5 attribution methods.
+	4.	Residual Diagnostics Module (clustering, pattern analysis, improvement recommendations)
+	•	Input: Model residuals + original features
+	•	Output: Residual Diagnostics (what is the model missing, which customer segments are predicted poorly, how to improve)
+	•	Use case: “LTV model underpredicts mobile users by $180 avg. Should we build mobile-specific submodel?” Answer: Yes, here’s the improvement roadmap.
+Architecture: All 4 modules run in parallel, then aggregate into Phase 2 Aggregated Output.
+DAG dependency: Phase 2 DAG depends_on phase_1_aggregation. Once Phase 1 completes, Phase 2 automatically triggers.
+Key point: Phase 2 is diagnostic and causal, not predictive. It explains WHY the Phase 1 patterns exist and HOW to improve them.
+Technical stack (same as Phase 1):
+	•	Python FastAPI microservice (4 new operators)
+	•	scipy/statsmodels (t-tests, ANOVA, residual diagnostics)
+	•	scikit-learn (cross-validation, clustering, outlier detection)
+	•	Shapley value library (advanced attribution)
+	•	PostgreSQL DAG schema (already supports Phase 2)
+Implementation approach:
+	1.	Set up Phase 2 microservice (FastAPI + connection to Phase 1 outputs)
+	2.	Implement Group Comparison operator (simplest, validates pattern)
+	3.	Implement Model Diagnostics operator (validates Phase 1 models)
+	4.	Implement Attribution Modeling operator (most complex, highest business value)
+	5.	Implement Residual Diagnostics operator (improvement recommendations)
+	6.	Create Phase 2 DAG definition with 4 parallel operators + aggregation
+Timeline: 2-3 weeks for Phase 2 (assuming Phase 1 is complete)
+Dependencies: Phase 1 complete and outputting valid regression models, residuals, and customer data.
+Ready to spec out Phase 2 tasks in detail?
+Why This Architecture Works
+Phase 1 answered: “What patterns exist in the data?”
+Phase 2 answers: “Why do those patterns exist? Is our model valid? Which channels drive outcomes?”
+Each Phase 2 module:
+	•	✅ Depends on Phase 1 outputs (takes models/metrics as input)
+	•	✅ Runs in parallel (no inter-module dependencies)
+	•	✅ Produces business-actionable insights (statistical tests, diagnostics, attribution, recommendations)
+	•	✅ Follows same operator pattern as Phase 1 (easy to extend)
