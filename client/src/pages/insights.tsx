@@ -27,9 +27,13 @@ import {
   Send,
   Check,
   Clock,
-  Zap
+  Zap,
+  FileText,
+  Database
 } from "lucide-react";
 import type { RecommendedAction, AnalysisReport } from "@shared/schema";
+import { Link } from "wouter";
+import { formatDistanceToNow } from "date-fns";
 
 const ACTION_TYPE_ICONS: Record<string, typeof Target> = {
   campaign: Target,
@@ -62,6 +66,14 @@ function getPriorityBadge(priority: number) {
   }
 }
 
+interface DashboardMetrics {
+  analytics: { totalUsers: number; totalSessions: number; totalPageViews: number; avgBounceRate: string; recordCount: number };
+  ads: { totalSpend: string; totalImpressions: number; totalClicks: number; totalConversions: number; avgRoas: string; recordCount: number };
+  crm: { totalContacts: number; totalDeals: number; totalRevenue: string; totalPipeline: string; recordCount: number };
+  email: { totalSent: number; totalOpens: number; avgOpenRate: string; recordCount: number };
+  summary: { totalDataPoints: number; activeIntegrations: number; dataQuality: string };
+}
+
 export default function Insights() {
   const { organization } = useAuth();
   const { toast } = useToast();
@@ -71,8 +83,13 @@ export default function Insights() {
     enabled: !!organization?.id,
   });
 
-  const { data: reports } = useQuery<AnalysisReport[]>({
+  const { data: reports, isLoading: loadingReports } = useQuery<AnalysisReport[]>({
     queryKey: [`/api/organization/${organization?.id}/analysis-reports`],
+    enabled: !!organization?.id,
+  });
+
+  const { data: metrics } = useQuery<DashboardMetrics>({
+    queryKey: ['/api/organization', organization?.id, 'dashboard-metrics'],
     enabled: !!organization?.id,
   });
 
@@ -102,48 +119,88 @@ export default function Insights() {
   const pendingActions = actions?.filter(a => !a.implemented) || [];
   const implementedActions = actions?.filter(a => a.implemented) || [];
 
-  const mockInsights = [
-    {
-      id: "1",
-      type: "propensity",
-      title: "18 High-Value Customer Segments Identified",
-      description: "Prescriptive analytics found 18 customer segments with 3x higher conversion probability.",
-      metric: "3x",
-      metricLabel: "conversion lift",
-      icon: Target,
-      color: "text-orange-500",
-    },
-    {
-      id: "2",
-      type: "churn",
-      title: "127 Accounts at Risk of Churn",
-      description: "Predictive model identified accounts showing early warning signs of disengagement.",
-      metric: "127",
-      metricLabel: "at-risk accounts",
-      icon: AlertTriangle,
-      color: "text-red-500",
-    },
-    {
-      id: "3",
-      type: "attribution",
-      title: "Email Campaigns Driving 45% of Conversions",
-      description: "Attribution analysis shows email is your highest-performing channel.",
-      metric: "45%",
-      metricLabel: "of conversions",
-      icon: BarChart3,
-      color: "text-blue-500",
-    },
-    {
-      id: "4",
-      type: "forecast",
-      title: "Revenue Forecast: $125K Next Quarter",
-      description: "Based on current trends and seasonality, expect $125K in revenue next quarter.",
-      metric: "$125K",
-      metricLabel: "projected",
-      icon: TrendingUp,
-      color: "text-green-500",
-    },
-  ];
+  // Generate insights from real metrics data
+  const hasData = metrics && metrics.summary.totalDataPoints > 0;
+  const hasReports = reports && reports.length > 0;
+  
+  const generateInsights = () => {
+    if (!metrics || !hasData) return [];
+    
+    const insights = [];
+    
+    // Safe number parser that handles "—" and invalid values
+    const safeParseFloat = (val: string | number | undefined): number => {
+      if (val === undefined || val === null || val === "—" || val === "") return 0;
+      const num = typeof val === 'string' ? parseFloat(val) : val;
+      return isNaN(num) ? 0 : num;
+    };
+    
+    // Analytics insight
+    if (metrics.analytics.recordCount > 0) {
+      const bounceRate = safeParseFloat(metrics.analytics.avgBounceRate);
+      insights.push({
+        id: "analytics",
+        type: "performance",
+        title: `${(metrics.analytics.totalUsers || 0).toLocaleString()} Total Users Analyzed`,
+        description: `Website analytics shows ${(metrics.analytics.totalSessions || 0).toLocaleString()} sessions with ${bounceRate.toFixed(1)}% bounce rate.`,
+        metric: (metrics.analytics.totalPageViews || 0).toLocaleString(),
+        metricLabel: "page views",
+        icon: BarChart3,
+        color: bounceRate > 50 ? "text-orange-500" : "text-blue-500",
+      });
+    }
+    
+    // Ads insight
+    if (metrics.ads.recordCount > 0) {
+      const roas = safeParseFloat(metrics.ads.avgRoas);
+      const spend = safeParseFloat(metrics.ads.totalSpend);
+      insights.push({
+        id: "ads",
+        type: "advertising",
+        title: `$${spend.toLocaleString()} Ad Spend Analyzed`,
+        description: `Advertising data shows ${metrics.ads.totalConversions || 0} conversions with ${roas.toFixed(2)}x average ROAS.`,
+        metric: `${roas.toFixed(1)}x`,
+        metricLabel: "avg ROAS",
+        icon: Target,
+        color: roas >= 2 ? "text-green-500" : roas >= 1 ? "text-yellow-500" : "text-red-500",
+      });
+    }
+    
+    // CRM insight
+    if (metrics.crm.recordCount > 0) {
+      const revenue = safeParseFloat(metrics.crm.totalRevenue);
+      const pipeline = safeParseFloat(metrics.crm.totalPipeline);
+      insights.push({
+        id: "crm",
+        type: "revenue",
+        title: `$${revenue.toLocaleString()} Revenue Tracked`,
+        description: `CRM data shows ${metrics.crm.totalDeals || 0} deals closed with $${pipeline.toLocaleString()} in pipeline.`,
+        metric: pipeline > 0 ? `$${(pipeline / 1000).toFixed(0)}K` : "$0",
+        metricLabel: "pipeline value",
+        icon: DollarSign,
+        color: "text-green-500",
+      });
+    }
+    
+    // Email insight
+    if (metrics.email.recordCount > 0) {
+      const openRate = safeParseFloat(metrics.email.avgOpenRate);
+      insights.push({
+        id: "email",
+        type: "engagement",
+        title: `${(metrics.email.totalSent || 0).toLocaleString()} Emails Analyzed`,
+        description: `Email performance shows ${openRate.toFixed(1)}% average open rate across campaigns.`,
+        metric: `${openRate.toFixed(1)}%`,
+        metricLabel: "open rate",
+        icon: Send,
+        color: openRate >= 20 ? "text-green-500" : openRate >= 10 ? "text-yellow-500" : "text-orange-500",
+      });
+    }
+    
+    return insights;
+  };
+
+  const realInsights = generateInsights();
 
   if (!organization) {
     return (
@@ -160,28 +217,104 @@ export default function Insights() {
       <div>
         <h1 className="text-2xl font-bold" data-testid="text-page-title">Insights & Actions</h1>
         <p className="text-muted-foreground">
-          Actionable recommendations from your latest analyses
+          {hasData 
+            ? `Insights from ${metrics.summary.totalDataPoints} data points across ${metrics.summary.activeIntegrations} sources`
+            : "Connect data sources and run analyses to generate insights"
+          }
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {mockInsights.map((insight) => {
-          const Icon = insight.icon;
-          return (
-            <Card key={insight.id} className="hover-elevate">
-              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-                <Icon className={`h-5 w-5 ${insight.color}`} />
-                <Badge variant="outline">{insight.type}</Badge>
+      {!hasData ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Database className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">No Data Available</h3>
+            <p className="text-muted-foreground text-center mb-4">
+              Connect your data sources and run an analysis to see insights here.
+            </p>
+            <div className="flex gap-2">
+              <Link href="/data-sources">
+                <Button variant="outline">Connect Sources</Button>
+              </Link>
+              <Link href="/analysis">
+                <Button>Run Analysis</Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {realInsights.map((insight) => {
+              const Icon = insight.icon;
+              return (
+                <Card key={insight.id} className="hover-elevate">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <Icon className={`h-5 w-5 ${insight.color}`} />
+                    <Badge variant="outline">{insight.type}</Badge>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold font-mono">{insight.metric}</div>
+                    <p className="text-xs text-muted-foreground">{insight.metricLabel}</p>
+                    <p className="text-sm mt-2">{insight.title}</p>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {hasReports && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Recent Analysis Reports
+                </CardTitle>
+                <CardDescription>
+                  Results from your completed analyses
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{insight.metric}</div>
-                <p className="text-xs text-muted-foreground">{insight.metricLabel}</p>
-                <p className="text-sm mt-2">{insight.title}</p>
+                <div className="space-y-4">
+                  {reports.slice(0, 5).map((report) => {
+                    const reportMetrics = report.metrics as { dataPointsAnalyzed?: number; enginesUsed?: string[] } | null;
+                    const keyFindings = report.keyFindings as Array<{ finding: string }> | null;
+                    
+                    return (
+                      <div key={report.id} className="p-4 rounded-lg bg-muted/50 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h4 className="font-medium">{report.reportName}</h4>
+                            <p className="text-sm text-muted-foreground">{report.insightsSummary}</p>
+                          </div>
+                          <Badge variant="secondary">
+                            {reportMetrics?.dataPointsAnalyzed || 0} points
+                          </Badge>
+                        </div>
+                        {keyFindings && keyFindings.length > 0 && (
+                          <ul className="text-sm space-y-1">
+                            {keyFindings.slice(0, 3).map((f, i) => (
+                              <li key={i} className="flex items-center gap-2">
+                                <CheckCircle className="h-3 w-3 text-green-500" />
+                                {f.finding}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {report.createdAt && (
+                          <p className="text-xs text-muted-foreground">
+                            Generated {formatDistanceToNow(new Date(report.createdAt), { addSuffix: true })}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </CardContent>
             </Card>
-          );
-        })}
-      </div>
+          )}
+        </>
+      )}
 
       <Tabs defaultValue="pending" className="space-y-4">
         <TabsList>
@@ -224,37 +357,42 @@ export default function Insights() {
                       {getPriorityBadge(action.priority || 2)}
                     </CardHeader>
                     <CardContent>
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                          {action.targetAudience && (
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                              <Users className="h-4 w-4" />
-                              <span>{action.targetAudience}</span>
-                            </div>
-                          )}
-                          {impact && (
-                            <div className="flex items-center gap-1 text-sm">
-                              <ArrowUpRight className="h-4 w-4 text-green-500" />
-                              <span className="font-medium">{impact.value}</span>
-                              <span className="text-muted-foreground">{impact.metric}</span>
+                      {impact && (
+                        <div className="flex items-center gap-4 mb-4 text-sm">
+                          <div className="flex items-center gap-1">
+                            <TrendingUp className="h-4 w-4 text-green-500" />
+                            <span className="font-medium">{impact.value}</span>
+                            <span className="text-muted-foreground">{impact.metric}</span>
+                          </div>
+                          {impact.confidence && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-muted-foreground">Confidence:</span>
+                              <span className="font-medium">{impact.confidence}%</span>
                             </div>
                           )}
                         </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" data-testid={`button-push-crm-${action.id}`}>
-                            <Send className="h-4 w-4 mr-2" />
-                            Push to CRM
-                          </Button>
-                          <Button 
-                            size="sm"
-                            onClick={() => implementActionMutation.mutate(action.id)}
-                            disabled={implementActionMutation.isPending}
-                            data-testid={`button-implement-${action.id}`}
-                          >
-                            <Check className="h-4 w-4 mr-2" />
-                            Mark Implemented
-                          </Button>
-                        </div>
+                      )}
+                      
+                      {action.targetAudience && (
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Target: {action.targetAudience}
+                        </p>
+                      )}
+                      
+                      <div className="flex gap-2 flex-wrap">
+                        <Button
+                          size="sm"
+                          onClick={() => implementActionMutation.mutate(action.id)}
+                          disabled={implementActionMutation.isPending}
+                          data-testid={`button-implement-${action.id}`}
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          Mark Implemented
+                        </Button>
+                        <Button size="sm" variant="outline">
+                          <ArrowUpRight className="h-4 w-4 mr-1" />
+                          View Details
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -265,13 +403,19 @@ export default function Insights() {
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Zap className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No Pending Actions</h3>
+                <h3 className="text-lg font-medium mb-2">No Pending Actions</h3>
                 <p className="text-muted-foreground text-center mb-4">
-                  Run an analysis to generate actionable recommendations.
+                  {hasData 
+                    ? "Run an analysis to generate actionable recommendations."
+                    : "Connect data sources and run analyses to get recommendations."
+                  }
                 </p>
-                <Button onClick={() => window.location.href = "/analysis/builder"} data-testid="button-build-analysis">
-                  Build New Analysis
-                </Button>
+                <Link href="/analysis">
+                  <Button data-testid="button-run-analysis">
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Run Analysis
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           )}
@@ -283,28 +427,28 @@ export default function Insights() {
               {implementedActions.map((action) => {
                 const Icon = ACTION_TYPE_ICONS[action.actionType] || Lightbulb;
                 const color = ACTION_TYPE_COLORS[action.actionType] || "text-muted-foreground";
-                const results = action.resultMetrics as { roi?: string } | null;
                 
                 return (
-                  <Card key={action.id} className="opacity-80" data-testid={`action-implemented-${action.id}`}>
+                  <Card key={action.id} className="opacity-75" data-testid={`action-implemented-${action.id}`}>
                     <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 pb-2">
                       <div className="flex items-start gap-3">
-                        <div className={`h-10 w-10 rounded-md bg-green-500/10 flex items-center justify-center`}>
-                          <CheckCircle className="h-5 w-5 text-green-500" />
+                        <div className={`h-10 w-10 rounded-md bg-muted flex items-center justify-center`}>
+                          <CheckCircle className={`h-5 w-5 text-green-500`} />
                         </div>
                         <div>
                           <CardTitle className="text-base">{action.title}</CardTitle>
-                          <CardDescription className="mt-1">
-                            Implemented {action.implementedAt && new Date(action.implementedAt).toLocaleDateString()}
-                          </CardDescription>
+                          <CardDescription className="mt-1">{action.description}</CardDescription>
                         </div>
                       </div>
-                      {results?.roi && (
-                        <Badge variant="default" className="bg-green-500">
-                          ROI: {results.roi}
-                        </Badge>
-                      )}
+                      <Badge variant="outline">Implemented</Badge>
                     </CardHeader>
+                    <CardContent>
+                      {action.implementedAt && (
+                        <p className="text-sm text-muted-foreground">
+                          Implemented {formatDistanceToNow(new Date(action.implementedAt), { addSuffix: true })}
+                        </p>
+                      )}
+                    </CardContent>
                   </Card>
                 );
               })}
@@ -313,9 +457,9 @@ export default function Insights() {
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Check className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No Implemented Actions Yet</h3>
+                <h3 className="text-lg font-medium mb-2">No Implemented Actions</h3>
                 <p className="text-muted-foreground text-center">
-                  Mark actions as implemented to track their ROI here.
+                  Actions you mark as implemented will appear here for tracking.
                 </p>
               </CardContent>
             </Card>

@@ -84,6 +84,9 @@ export interface IStorage {
   getMetricsCrm(organizationId: string, startDate?: Date, endDate?: Date): Promise<MetricsCrm[]>;
   createMetricsCrm(metrics: InsertMetricsCrm): Promise<MetricsCrm>;
   
+  getMetricsEmail(organizationId: string, startDate?: Date, endDate?: Date): Promise<MetricsEmail[]>;
+  createMetricsEmail(metrics: InsertMetricsEmail): Promise<MetricsEmail>;
+  
   // Impersonation log methods
   createImpersonationLog(log: InsertImpersonationLog): Promise<ImpersonationLog>;
   endImpersonationLog(id: string): Promise<ImpersonationLog | undefined>;
@@ -371,6 +374,17 @@ export class DatabaseStorage implements IStorage {
 
   async createMetricsCrm(insertMetrics: InsertMetricsCrm): Promise<MetricsCrm> {
     const [metrics] = await db.insert(metricsCrm).values(insertMetrics).returning();
+    return metrics;
+  }
+
+  async getMetricsEmail(organizationId: string, startDate?: Date, endDate?: Date): Promise<MetricsEmail[]> {
+    return db.select().from(metricsEmail)
+      .where(eq(metricsEmail.organizationId, organizationId))
+      .orderBy(desc(metricsEmail.metricDate));
+  }
+
+  async createMetricsEmail(insertMetrics: InsertMetricsEmail): Promise<MetricsEmail> {
+    const [metrics] = await db.insert(metricsEmail).values(insertMetrics).returning();
     return metrics;
   }
 

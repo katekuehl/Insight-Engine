@@ -1,18 +1,59 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth-context";
-import { BarChart3, Users, TrendingUp, Activity } from "lucide-react";
+import { BarChart3, Users, TrendingUp, Activity, DollarSign, Mail, Target, Database, Loader2 } from "lucide-react";
 import { Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
+
+interface DashboardMetrics {
+  analytics: {
+    totalUsers: number;
+    totalSessions: number;
+    totalPageViews: number;
+    avgBounceRate: string;
+    recordCount: number;
+  };
+  ads: {
+    totalSpend: string;
+    totalImpressions: number;
+    totalClicks: number;
+    totalConversions: number;
+    avgRoas: string;
+    recordCount: number;
+  };
+  crm: {
+    totalContacts: number;
+    totalDeals: number;
+    totalRevenue: string;
+    totalPipeline: string;
+    recordCount: number;
+  };
+  email: {
+    totalSent: number;
+    totalOpens: number;
+    avgOpenRate: string;
+    recordCount: number;
+  };
+  summary: {
+    totalDataPoints: number;
+    activeIntegrations: number;
+    dataQuality: string;
+  };
+}
 
 export default function Dashboard() {
   const { organization, user } = useAuth();
 
-  // Redirect super admins without an organization to admin panel
+  const { data: metrics, isLoading } = useQuery<DashboardMetrics>({
+    queryKey: ['/api/organization', organization?.id, 'dashboard-metrics'],
+    enabled: !!organization?.id,
+  });
+
   if (!organization && user?.isSuperAdmin) {
     return <Redirect to="/admin" />;
   }
 
-  // Show message for users without organization
   if (!organization) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
@@ -33,34 +74,75 @@ export default function Dashboard() {
     );
   }
 
+  const formatNumber = (num: number | string | undefined): string => {
+    if (num === undefined || num === null) return "—";
+    const n = typeof num === 'string' ? parseFloat(num) : num;
+    if (isNaN(n)) return "—";
+    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+    if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+    return n.toLocaleString();
+  };
+
+  const formatCurrency = (amount: string | number | undefined): string => {
+    if (amount === undefined || amount === null) return "—";
+    const n = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (isNaN(n)) return "—";
+    return `$${formatNumber(n)}`;
+  };
+
+  const hasData = metrics && metrics.summary.totalDataPoints > 0;
+
   const quickStats = [
     {
       title: "Total Users",
-      value: "—",
-      description: "Connect Google Analytics",
+      value: hasData ? formatNumber(metrics.analytics.totalUsers) : "—",
+      description: hasData ? `${metrics.analytics.recordCount} analytics records` : "Connect data sources",
       icon: Users,
       color: "text-blue-600",
     },
     {
       title: "Sessions",
-      value: "—",
-      description: "Last 30 days",
+      value: hasData ? formatNumber(metrics.analytics.totalSessions) : "—",
+      description: hasData ? `${metrics.analytics.avgBounceRate} bounce rate` : "Last 30 days",
       icon: Activity,
       color: "text-green-600",
     },
     {
-      title: "Bounce Rate",
-      value: "—",
-      description: "Average",
-      icon: TrendingUp,
+      title: "Ad Spend",
+      value: hasData ? formatCurrency(metrics.ads.totalSpend) : "—",
+      description: hasData ? `${metrics.ads.avgRoas}x ROAS` : "Connect ad platforms",
+      icon: DollarSign,
       color: "text-orange-600",
     },
     {
-      title: "Page Views",
-      value: "—",
-      description: "Total views",
-      icon: BarChart3,
+      title: "Revenue",
+      value: hasData ? formatCurrency(metrics.crm.totalRevenue) : "—",
+      description: hasData ? `${metrics.crm.totalDeals} deals closed` : "Connect CRM",
+      icon: TrendingUp,
       color: "text-purple-600",
+    },
+  ];
+
+  const detailedStats = [
+    {
+      title: "Page Views",
+      value: hasData ? formatNumber(metrics.analytics.totalPageViews) : "—",
+      icon: BarChart3,
+    },
+    {
+      title: "Ad Clicks",
+      value: hasData ? formatNumber(metrics.ads.totalClicks) : "—",
+      icon: Target,
+    },
+    {
+      title: "Emails Sent",
+      value: hasData ? formatNumber(metrics.email.totalSent) : "—",
+      icon: Mail,
+    },
+    {
+      title: "Pipeline Value",
+      value: hasData ? formatCurrency(metrics.crm.totalPipeline) : "—",
+      icon: DollarSign,
     },
   ];
 
@@ -71,69 +153,144 @@ export default function Dashboard() {
           Welcome back, {organization?.name || "User"}!
         </h1>
         <p className="text-muted-foreground mt-1">
-          Here's an overview of your analytics
+          {hasData 
+            ? `Analyzing ${formatNumber(metrics.summary.totalDataPoints)} data points across ${metrics.summary.activeIntegrations} sources`
+            : "Connect your data sources to see unified analytics"
+          }
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {quickStats.map((stat, index) => (
-          <Card key={index}>
-            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {stat.title}
-              </CardTitle>
-              <stat.icon className={`h-4 w-4 ${stat.color}`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold font-mono" data-testid={`stat-${stat.title.toLowerCase().replace(" ", "-")}`}>
-                {stat.value}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {stat.description}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-4" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16 mb-1" />
+                <Skeleton className="h-3 w-32" />
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          quickStats.map((stat, index) => (
+            <Card key={index}>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {stat.title}
+                </CardTitle>
+                <stat.icon className={`h-4 w-4 ${stat.color}`} />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold font-mono" data-testid={`stat-${stat.title.toLowerCase().replace(" ", "-")}`}>
+                  {stat.value}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {stat.description}
+                </p>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
+
+      {hasData && (
+        <div className="grid gap-4 md:grid-cols-4">
+          {detailedStats.map((stat, index) => (
+            <Card key={index}>
+              <CardContent className="flex items-center gap-3 pt-6">
+                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                  <stat.icon className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{stat.title}</p>
+                  <p className="text-xl font-semibold font-mono">{stat.value}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Get Started</CardTitle>
+            <CardTitle>
+              {hasData ? "Data Summary" : "Get Started"}
+            </CardTitle>
             <CardDescription>
-              Connect your Google Analytics to see your data
+              {hasData 
+                ? `${metrics.summary.dataQuality} data quality score` 
+                : "Connect your data sources to see unified analytics"
+              }
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <BarChart3 className="h-5 w-5 text-primary" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-medium">View Analytics</h3>
-                <p className="text-sm text-muted-foreground">
-                  See your user metrics and charts
-                </p>
-              </div>
-              <Link href="/analytics">
-                <Button data-testid="button-view-analytics">View</Button>
-              </Link>
-            </div>
-
-            <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Users className="h-5 w-5 text-primary" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-medium">Invite Team</h3>
-                <p className="text-sm text-muted-foreground">
-                  Add team members to your organization
-                </p>
-              </div>
-              <Link href="/team">
-                <Button variant="outline" data-testid="button-invite-team">Invite</Button>
-              </Link>
-            </div>
+            {hasData ? (
+              <>
+                <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Database className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-medium">{metrics.summary.totalDataPoints} Data Points</h3>
+                    <p className="text-sm text-muted-foreground">
+                      From {metrics.summary.activeIntegrations} connected sources
+                    </p>
+                  </div>
+                  <Link href="/data-sources">
+                    <Button variant="outline" data-testid="button-view-sources">Manage</Button>
+                  </Link>
+                </div>
+                <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-medium">Run Analysis</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Get insights from your connected data
+                    </p>
+                  </div>
+                  <Link href="/analysis">
+                    <Button data-testid="button-run-analysis">Analyze</Button>
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Database className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-medium">Connect Data Sources</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Link your analytics, ads, and CRM platforms
+                    </p>
+                  </div>
+                  <Link href="/data-sources">
+                    <Button data-testid="button-connect-sources">Connect</Button>
+                  </Link>
+                </div>
+                <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Users className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-medium">Invite Team</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Add team members to your organization
+                    </p>
+                  </div>
+                  <Link href="/team">
+                    <Button variant="outline" data-testid="button-invite-team">Invite</Button>
+                  </Link>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -166,6 +323,12 @@ export default function Dashboard() {
                   {organization?.subscriptionPlan || "Free"}
                 </span>
               </div>
+              {hasData && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Data Quality</span>
+                  <span className="text-sm font-medium">{metrics.summary.dataQuality}</span>
+                </div>
+              )}
             </div>
             <Link href="/billing">
               <Button variant="outline" className="w-full" data-testid="button-manage-subscription">

@@ -439,7 +439,12 @@ export default function DataSources() {
                 const recentSyncs = syncJobs?.filter(j => j.integrationId === integration.id).slice(0, 3) || [];
                 const lastSync = recentSyncs[0];
                 const validRecords = lastSync?.recordsProcessed || 0;
-                const qualityScore = validRecords > 0 ? 98.5 : 0;
+                // Calculate quality score based on integration status and sync history
+                const hasRecentSync = integration.lastSyncAt && 
+                  new Date(integration.lastSyncAt).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000; // Within 7 days
+                const qualityScore = integration.status === 'active' 
+                  ? (validRecords > 0 ? Math.min(98.5, 85 + Math.min(validRecords, 15)) : (hasRecentSync ? 75 : 50))
+                  : 0;
                 
                 return (
                   <Card key={integration.id} data-testid={`card-integration-${integration.id}`}>
