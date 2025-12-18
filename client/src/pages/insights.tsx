@@ -30,8 +30,14 @@ import {
   Clock,
   Zap,
   FileText,
-  Database
+  Database,
+  ChevronDown
 } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import type { RecommendedAction, AnalysisReport } from "@shared/schema";
 import { Link } from "wouter";
 import { formatDistanceToNow } from "date-fns";
@@ -269,56 +275,6 @@ export default function Insights() {
             })}
           </div>
 
-          {hasReports && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Recent Analysis Reports
-                </CardTitle>
-                <CardDescription>
-                  Results from your completed analyses
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {reports.slice(0, 5).map((report) => {
-                    const reportMetrics = report.metrics as { dataPointsAnalyzed?: number; enginesUsed?: string[] } | null;
-                    const keyFindings = report.keyFindings as Array<{ finding: string }> | null;
-                    
-                    return (
-                      <div key={report.id} className="p-4 rounded-lg bg-muted/50 space-y-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <h4 className="font-medium">{report.reportName}</h4>
-                            <p className="text-sm text-muted-foreground">{report.insightsSummary}</p>
-                          </div>
-                          <Badge variant="secondary">
-                            {reportMetrics?.dataPointsAnalyzed || 0} points
-                          </Badge>
-                        </div>
-                        {keyFindings && keyFindings.length > 0 && (
-                          <ul className="text-sm space-y-1">
-                            {keyFindings.slice(0, 3).map((f, i) => (
-                              <li key={i} className="flex items-center gap-2">
-                                <CheckCircle className="h-3 w-3 text-green-500" />
-                                {f.finding}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                        {report.createdAt && (
-                          <p className="text-xs text-muted-foreground">
-                            Generated {formatDistanceToNow(new Date(report.createdAt), { addSuffix: true })}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </>
       )}
 
@@ -472,6 +428,66 @@ export default function Insights() {
           )}
         </TabsContent>
       </Tabs>
+
+      {hasReports && (
+        <Collapsible defaultOpen={false}>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover-elevate">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Recent Analysis Reports
+                  </CardTitle>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                </div>
+                <CardDescription>
+                  Results from your completed analyses
+                </CardDescription>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent>
+                <div className="space-y-4">
+                  {reports.slice(0, 5).map((report) => {
+                    const reportMetrics = report.metrics as { dataPointsAnalyzed?: number; enginesUsed?: string[] } | null;
+                    const keyFindings = report.keyFindings as Array<{ finding: string }> | null;
+                    
+                    return (
+                      <div key={report.id} className="p-4 rounded-lg bg-muted/50 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h4 className="font-medium">{report.reportName}</h4>
+                            <p className="text-sm text-muted-foreground">{report.insightsSummary}</p>
+                          </div>
+                          <Badge variant="secondary">
+                            {reportMetrics?.dataPointsAnalyzed || 0} points
+                          </Badge>
+                        </div>
+                        {keyFindings && keyFindings.length > 0 && (
+                          <ul className="text-sm space-y-1">
+                            {keyFindings.slice(0, 3).map((f, i) => (
+                              <li key={i} className="flex items-center gap-2">
+                                <CheckCircle className="h-3 w-3 text-green-500" />
+                                {f.finding}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {report.createdAt && (
+                          <p className="text-xs text-muted-foreground">
+                            Generated {formatDistanceToNow(new Date(report.createdAt), { addSuffix: true })}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+      )}
     </div>
   );
 }
