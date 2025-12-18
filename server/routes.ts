@@ -984,45 +984,119 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Integration not found" });
       }
       
+      const orgId = req.params.orgId;
+      const integrationId = req.params.integrationId;
+      
       // Create a new sync job
       const job = await storage.createSyncJob({
-        integrationId: req.params.integrationId,
-        organizationId: req.params.orgId,
+        integrationId,
+        organizationId: orgId,
         status: "running",
+        startedAt: new Date(),
       });
       
-      // For manual data uploads, we complete the sync immediately since data is already present
-      // In a production system, this would trigger an async worker to fetch data from the platform
-      const orgId = req.params.orgId;
+      // Return immediately to show the sync is in progress
+      res.json({ ...job, message: "Sync started" });
       
-      // Count existing records for this integration to show as synced
-      const [analyticsData, adsData, crmData] = await Promise.all([
-        storage.getMetricsAnalytics(orgId),
-        storage.getMetricsAds(orgId),
-        storage.getMetricsCrm(orgId)
-      ]);
-      
-      // Calculate records for this specific integration
-      const analyticsRecords = analyticsData.filter(r => r.integrationId === req.params.integrationId).length;
-      const adsRecords = adsData.filter(r => r.integrationId === req.params.integrationId).length;
-      const crmRecords = crmData.filter(r => r.integrationId === req.params.integrationId).length;
-      const totalRecords = analyticsRecords + adsRecords + crmRecords;
-      
-      // Complete the sync job
-      await storage.updateSyncJob(job.id, {
-        status: "completed",
-        completedAt: new Date(),
-        recordsProcessed: totalRecords,
+      // Execute sync asynchronously
+      setImmediate(async () => {
+        let recordsProcessed = 0;
+        let errorMessage: string | null = null;
+        
+        try {
+          console.log(`[Sync] Starting sync for integration ${integrationId} (${integration.platform})`);
+          
+          // Handle different platform types
+          if (integration.platform === "google_analytics") {
+            // Fetch real data from GA4 API
+            const metadata = integration.metadata as Record<string, string> | null;
+            
+            if (!metadata?.propertyId || !metadata?.serviceAccountJson) {
+              throw new Error("Missing GA4 credentials. Please configure Property ID and Service Account JSON.");
+            }
+            
+            // Calculate date range (last 90 days)
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 90);
+            
+            console.log(`[Sync] Fetching GA4 data from ${startDate.toISOString().split("T")[0]} to ${endDate.toISOString().split("T")[0]}`);
+            
+            const ga4Data = await fetchGA4Data(
+              integration,
+              startDate.toISOString().split("T")[0],
+              endDate.toISOString().split("T")[0]
+            );
+            
+            console.log(`[Sync] Received ${ga4Data.daily.length} daily records from GA4`);
+            
+            // Delete existing records for this integration to avoid duplicates
+            await storage.deleteMetricsAnalyticsByIntegration(integrationId);
+            
+            // Store each daily record in the database
+            for (const dailyRecord of ga4Data.daily) {
+              // Parse the date from YYYYMMDD format
+              const year = parseInt(dailyRecord.date.substring(0, 4));
+              const month = parseInt(dailyRecord.date.substring(4, 6)) - 1;
+              const day = parseInt(dailyRecord.date.substring(6, 8));
+              const metricDate = new Date(year, month, day);
+              
+              await storage.createMetricsAnalytics({
+                organizationId: orgId,
+                integrationId,
+                metricDate,
+                users: dailyRecord.users,
+                sessions: dailyRecord.sessions,
+                pageViews: dailyRecord.pageviews,
+                bounceRate: String(ga4Data.summary.bounceRate),
+                avgSessionDuration: Math.round(ga4Data.summary.avgSessionDuration),
+                newUsers: ga4Data.summary.newUsers,
+                topPages: ga4Data.topPages,
+                trafficSources: ga4Data.topSources,
+              });
+              
+              recordsProcessed++;
+            }
+            
+            console.log(`[Sync] Stored ${recordsProcessed} records in metricsAnalytics table`);
+            
+          } else {
+            // For other platforms, just count existing records (placeholder for future implementation)
+            const [analyticsData, adsData, crmData] = await Promise.all([
+              storage.getMetricsAnalytics(orgId),
+              storage.getMetricsAds(orgId),
+              storage.getMetricsCrm(orgId)
+            ]);
+            
+            recordsProcessed = 
+              analyticsData.filter(r => r.integrationId === integrationId).length +
+              adsData.filter(r => r.integrationId === integrationId).length +
+              crmData.filter(r => r.integrationId === integrationId).length;
+          }
+          
+        } catch (error: any) {
+          console.error(`[Sync] Error syncing integration ${integrationId}:`, error);
+          errorMessage = error.message || "Unknown sync error";
+        }
+        
+        // Update sync job with final status
+        await storage.updateSyncJob(job.id, {
+          status: errorMessage ? "failed" : "completed",
+          completedAt: new Date(),
+          recordsProcessed,
+          errorMessage,
+        });
+        
+        // Update integration status
+        await storage.updateIntegration(integrationId, {
+          lastSyncAt: new Date(),
+          lastSyncError: errorMessage,
+          status: errorMessage ? "error" : "active",
+        });
+        
+        console.log(`[Sync] Completed sync for ${integrationId}: ${recordsProcessed} records, error: ${errorMessage || "none"}`);
       });
       
-      // Update integration last sync time
-      await storage.updateIntegration(req.params.integrationId, {
-        lastSyncAt: new Date(),
-        lastSyncError: null,
-      });
-      
-      const updatedJob = await storage.getSyncJob(job.id);
-      res.json(updatedJob);
     } catch (error) {
       console.error("Sync error:", error);
       res.status(500).json({ error: "Failed to start sync" });

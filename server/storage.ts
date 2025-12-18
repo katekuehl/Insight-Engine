@@ -77,12 +77,15 @@ export interface IStorage {
   // Metrics methods
   getMetricsAds(organizationId: string, startDate?: Date, endDate?: Date): Promise<MetricsAds[]>;
   createMetricsAds(metrics: InsertMetricsAds): Promise<MetricsAds>;
+  deleteMetricsAdsByIntegration(integrationId: string): Promise<void>;
   
   getMetricsAnalytics(organizationId: string, startDate?: Date, endDate?: Date): Promise<MetricsAnalytics[]>;
   createMetricsAnalytics(metrics: InsertMetricsAnalytics): Promise<MetricsAnalytics>;
+  deleteMetricsAnalyticsByIntegration(integrationId: string): Promise<void>;
   
   getMetricsCrm(organizationId: string, startDate?: Date, endDate?: Date): Promise<MetricsCrm[]>;
   createMetricsCrm(metrics: InsertMetricsCrm): Promise<MetricsCrm>;
+  deleteMetricsCrmByIntegration(integrationId: string): Promise<void>;
   
   getMetricsEmail(organizationId: string, startDate?: Date, endDate?: Date): Promise<MetricsEmail[]>;
   createMetricsEmail(metrics: InsertMetricsEmail): Promise<MetricsEmail>;
@@ -355,6 +358,10 @@ export class DatabaseStorage implements IStorage {
     return metrics;
   }
 
+  async deleteMetricsAdsByIntegration(integrationId: string): Promise<void> {
+    await db.delete(metricsAds).where(eq(metricsAds.integrationId, integrationId));
+  }
+
   async getMetricsAnalytics(organizationId: string, startDate?: Date, endDate?: Date): Promise<MetricsAnalytics[]> {
     return db.select().from(metricsAnalytics)
       .where(eq(metricsAnalytics.organizationId, organizationId))
@@ -366,6 +373,10 @@ export class DatabaseStorage implements IStorage {
     return metrics;
   }
 
+  async deleteMetricsAnalyticsByIntegration(integrationId: string): Promise<void> {
+    await db.delete(metricsAnalytics).where(eq(metricsAnalytics.integrationId, integrationId));
+  }
+
   async getMetricsCrm(organizationId: string, startDate?: Date, endDate?: Date): Promise<MetricsCrm[]> {
     return db.select().from(metricsCrm)
       .where(eq(metricsCrm.organizationId, organizationId))
@@ -375,6 +386,10 @@ export class DatabaseStorage implements IStorage {
   async createMetricsCrm(insertMetrics: InsertMetricsCrm): Promise<MetricsCrm> {
     const [metrics] = await db.insert(metricsCrm).values(insertMetrics).returning();
     return metrics;
+  }
+
+  async deleteMetricsCrmByIntegration(integrationId: string): Promise<void> {
+    await db.delete(metricsCrm).where(eq(metricsCrm.integrationId, integrationId));
   }
 
   async getMetricsEmail(organizationId: string, startDate?: Date, endDate?: Date): Promise<MetricsEmail[]> {
