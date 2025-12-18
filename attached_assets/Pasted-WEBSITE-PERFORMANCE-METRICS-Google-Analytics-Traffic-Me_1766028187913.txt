@@ -1,0 +1,46 @@
+WEBSITE PERFORMANCE METRICS (Google Analytics)
+Traffic Metrics: Sessions, Users, New Users, Pageviews, Pages Per Session, Avg Session Duration Seconds, Bounce Rate Percent
+Conversion Metrics: Goal Completions, Goal Conversion Rate Percent
+Traffic Sources: Organic Search Sessions, Direct Sessions, Paid Search Sessions, Social Sessions, Referral Sessions, Email Sessions
+Device Breakdown: Desktop Sessions, Mobile Sessions, Tablet Sessions
+Top Landing Pages: Homepage Sessions, Product Pages Sessions, Solutions Pages Sessions
+Time: Month (January-December), Year (2025)
+ADVERTISING PERFORMANCE METRICS (Google Ads + Facebook Ads)
+Google Ads Metrics: Google Ads Impressions, Google Ads Clicks, Google Ads CTR Percent, Google Ads Spend, Google Ads Conversions, Google Ads Conversion Rate Percent, Google Ads CPC, Google Ads CPA, Google Ads ROAS
+Facebook/Meta Ads Metrics: Facebook Ads Impressions, Facebook Ads Clicks, Facebook Ads CTR Percent, Facebook Ads Spend, Facebook Ads Conversions, Facebook Ads Conversion Rate Percent, Facebook Ads CPC, Facebook Ads CPA, Facebook Ads ROAS
+Combined Metrics: Total Impressions, Total Clicks, Total CTR Percent, Total Ad Spend, Total Conversions, Total Conversion Rate Percent, Total CPC, Total CPA, Blended ROAS
+Campaign Type Breakdown: Search Campaigns Spend, Display Campaigns Spend, Remarketing Campaigns Spend, Social Campaigns Spend
+Time: Month (January-December), Year (2025)
+EMAIL CAMPAIGN PERFORMANCE METRICS (Salesforce Pardot)
+List Management: Total Subscribers, New Subscribers, Unsubscribes, Unsubscribe Rate Percent
+Campaign Metrics: Campaigns Sent, Total Emails Sent
+Delivery Metrics: Delivered, Bounced, Bounce Rate Percent
+Opens: Total Opens, Open Rate Percent, Unique Opens, Unique Open Rate Percent
+Clicks: Total Clicks, Click Rate Percent, Click To Open Rate Percent, Unique Clicks, Unique Click Rate Percent
+Conversions: Conversions, Conversion Rate Percent, Email Generated Leads
+Email Type Breakdown: Newsletter Emails Sent, Promotional Emails Sent, Nurture Emails Sent, Transactional Emails Sent
+Time: Month (January-December), Year (2025)
+SALES & CRM PERFORMANCE METRICS (Salesforce)
+Lead Generation: Total Leads
+Lead Funnel: MQLs (Marketing Qualified Leads), MQL Conversion Rate Percent, SQLs (Sales Qualified Leads), SQL Conversion Rate Percent
+Opportunities: Opportunities Created, Opportunity Conversion Rate Percent, Pipeline Value, Open Opportunities
+Deal Closure: Closed Won, Closed Lost, Win Rate Percent, Loss Rate Percent
+Revenue: Monthly Revenue, Cumulative Revenue YTD, Average Deal Size
+Customers: New Customers, Churned Customers, Total Active Customers, Churn Rate Percent
+Sales Process: Average Sales Cycle Days
+Lead Sources: Website Leads, Paid Ads Leads, Email Marketing Leads, Referral Leads, Trade Shows Leads, Other Leads
+Product Revenue: SmartDiag Revenue, LiftMaster Revenue, ToolHub Revenue, Calibration Kits Revenue
+Sales Team: Sales Team Size, Revenue Per Sales Rep, Deals Per Sales Rep
+Time: Month (January-December), Year (2025)
+DATA SUMMARY
+Total Metrics: 113 across all four datasets
+Website Performance: 22 metrics across 12 months
+Advertising Performance: 31 metrics across 12 months (combines Google Ads and Facebook Ads)
+Email Campaign Performance: 27 metrics across 12 months
+Sales & CRM Performance: 33 metrics across 12 months
+Total Data Points: 48 rows (12 months × 4 datasets)
+DATA TYPES & FORMATS
+Counts/Integers: Sessions, Users, Leads, Conversions, Revenue, Impressions, Clicks, Opens, Emails Sent (approximately 52 metrics)
+Percentages: Bounce Rate, Conversion Rate, CTR, Win Rate, Churn Rate, Open Rate, Click Rate (0-100%, 2 decimal places) (approximately 35 metrics)
+Currency: Ad Spend, Revenue, Deal Size, CPC, CPA (USD, 2 decimal places for transactions, integers for aggregates) (approximately 18 metrics)
+Efficiency Ratios: ROAS, CPC, CPA, Revenue Per Rep (2 decimal places) (approximately 8 metrics)

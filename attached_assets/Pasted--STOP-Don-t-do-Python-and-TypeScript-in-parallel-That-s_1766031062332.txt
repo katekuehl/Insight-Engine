@@ -1,0 +1,52 @@
+“STOP. Don’t do Python and TypeScript in parallel. That’s where things will break.
+Here’s the problem:
+If you build Python pipeline and TypeScript schema separately, they’ll diverge:
+	•	Python validates 22 fields for GA4
+	•	TypeScript schema expects 15 fields
+	•	Data passes Python validation, fails TypeScript insertion
+	•	Or data fails TypeScript, Python doesn’t know why
+	•	System is inconsistent and unmaintainable
+New approach (Sequential, not Parallel):
+Phase A: Python Data Pipeline (COMPLETE FIRST)
+Build and TEST all 7 deliverables in Python:
+	1.	schema_definitions.py
+	2.	csv_importer.py
+	3.	database_schema.sql
+	4.	data_loader.py
+	5.	data_verification.py
+	6.	main_pipeline.py
+	7.	README_data_pipeline.md
+Success Criteria: Run `main_pipeline.py` → All 5 connectors succeed → All 60 records in database → Verification passes
+DO NOT TOUCH TypeScript YET
+Phase B: TypeScript Schema Alignment (AFTER Python works)
+Once Python pipeline is verified working:
+	1.	Update `shared/schema.ts` to match Python schemas (113 metrics exactly)
+	2.	Update `server/storage.ts` interfaces to match database tables
+	3.	Update any API endpoints to return data matching Python-loaded records
+Success Criteria: TypeScript types match Python dataclasses
+Why this order:
+	•	Python is the source of truth for data integrity
+	•	TypeScript is just the interface layer
+	•	If Python works first, TypeScript just has to keep up
+	•	Never the other way around
+Timeline
+Week 1: Python Pipeline
+	•	Tasks 1-7 complete
+	•	`main_pipeline.py` running successfully
+	•	60 verified records in database
+Week 2: TypeScript Alignment
+	•	`shared/schema.ts` updated to 113 metrics
+	•	`server/storage.ts` interfaces match
+	•	API tests passing
+Why This Matters
+If you do them in parallel:
+	•	Both teams work with assumptions
+	•	Assumptions diverge
+	•	System breaks at integration point
+	•	Takes 2x as long to debug
+If you do Python first:
+	•	Python is the working reference
+	•	TypeScript just has to match it
+	•	Integration is trivial
+	•	Faster overall
+Commit to this: Finish Python completely. THEN TypeScript. No parallel work.

@@ -1,0 +1,76 @@
+CRITICAL: Data Pipeline Architecture Issue
+We’ve identified a fundamental problem with the current approach. We’re losing 69% of our data and replacing it with synthetic fakes.
+The Problem
+Your current code structure:
+	•	113 metrics defined in our data spec
+	•	Only 35 metrics being stored in database
+	•	Missing 78 metrics (69% loss)
+	•	When engines can’t find  generates synthetic replacements
+	•	Output: Insights based on fake data, user never knows
+Evidence
+Every engine file has this pattern:
+
+if not upstream_
+    return self._generate_synthetic_output()
+
+This means missing data gets silently replaced with fakes. We can’t build a reliable system this way.
+What We Need Instead
+Build in this order (NOT UI-first):
+	1.	Schema Layer - Define all 113 metrics with strict validation
+	•	No optional fields
+	•	No default values
+	•	Raise exception if ANY metric missing
+	2.	Connector Layer - Ingest data with validation
+	•	GA4 → metricsAnalytics (22 metrics)
+	•	Google Ads → metricsAds (15 metrics, google_ads platform)
+	•	Meta Ads → metricsAds (16 metrics, meta_ads platform)
+	•	Salesforce → metricsCrm (33 metrics)
+	•	Pardot → metricsEmail (27 metrics)
+	•	Fail completely if validation doesn’t pass
+	3.	Database Verification - Query tables manually
+	•	Confirm all 113 metrics present
+	•	Check data types correct
+	•	Verify no NULL values in required fields
+	4.	Engine Layer - Engines MUST fail if data incomplete
+	•	Check data exists before processing
+	•	Return “FAILED” status if any metric missing
+	•	Never generate synthetic as fallback
+	5.	Business Layer - Generate recommendations only if all engines succeed
+	•	Check all engines returned SUCCESS
+	•	If any FAILED: return “Data incomplete, waiting for: X, Y, Z”
+	•	Never hide missing data
+	6.	UI Layer - Build UI AFTER data is verified
+	•	Display real insights from real data
+	•	Show data completeness percentage
+	•	Alert if data quality drops
+The Key Rule
+Current (Wrong):
+
+Data missing → Fill with synthetic → Process → Show insights
+
+Correct (What we need):
+
+Immediate Actions
+	1.	Create `schema_definitions.py` - Define all 113 metrics with required types, no defaults
+	2.	Create `ga4_connector.py` - Fetch GA4 data, validate against schema, insert to DB or FAIL
+	3.	Create `ads_connector.py` - Separate Google Ads and Meta Ads, validate, insert or FAIL
+	4.	Create `crm_connector.py` - Salesforce data validation and insertion
+	5.	Create `email_connector.py` - Pardot data validation and insertion
+	6.	Create `database_queries.py` - Manual SQL queries to verify what’s stored
+	7.	Rewrite all engine files to check data completeness and FAIL if incomplete
+	8.	Rewrite business_results_layer.py to check all engines succeeded before generating recommendations
+Why This Matters
+If we launch with synthetic data mixed in:
+	•	Customers make decisions based on fake insights
+	•	We can’t debug what went wrong (real vs fake data mixed)
+	•	System fails at customer site with no clear root cause
+	•	We lose trust and revenue
+If we build data-first:
+	•	Real data in, real insights out
+	•	Clear failures if data is missing (so we know what’s broken)
+	•	System is trustworthy and debuggable
+	•	Customers see real business impact
+Bottom Line
+Don’t build the UI. Build the data pipeline that MUST work with 113 real metrics, fails if incomplete, and never generates synthetic data as a fallback.
+Once that’s solid and verified in the database, THEN we build the UI on top of confirmed real data.
+Ready?

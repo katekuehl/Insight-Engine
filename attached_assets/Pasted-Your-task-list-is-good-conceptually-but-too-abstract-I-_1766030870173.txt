@@ -1,0 +1,255 @@
+Your task list is good conceptually, but too abstract. I need you to commit to SPECIFIC, MEASURABLE deliverables. Here’s what I need you to build IN THIS ORDER:
+Task 1: Create schema_definitions.py
+Deliverable: A single Python file with 4 dataclasses (WebsiteMetricsSchema, AdsMetricsSchema, EmailMetricsSchema, CrmMetricsSchema) copied exactly from what I sent you.
+Success criteria:
+	•	File exists at `/schemas/schema_definitions.py`
+	•	All 4 classes defined with ALL fields (no omissions)
+	•	All validate() methods present
+	•	Can import with: `from schemas.schema_definitions import WebsiteMetricsSchema`
+	•	Can instantiate and call validate() without errors
+Test before moving on:
+from schemas.schema_definitions import WebsiteMetricsSchema
+from datetime import date
+
+# This should work
+data = WebsiteMetricsSchema(
+    metric_date=date(2025, 1, 1),
+    organization_id="PrecisionTools Pro",
+    sessions=14621, users=12011, new_users=11340,
+    pageviews=55287, pages_per_session=3.78, avg_session_duration=187,
+    bounce_rate=48.5, goal_completions=687, goal_conversion_rate=4.70,
+    organic_sessions=5848, direct_sessions=5831, paid_sessions=2191,
+    social_sessions=585, referral_sessions=293, email_sessions=50,
+    desktop_sessions=9076, mobile_sessions=4891, tablet_sessions=654
+)
+print("Valid:", data.validate())
+
+Task 2: Create csv_importer.py
+Deliverable: A Python file that reads your 5 CSVs and converts them to schema instances.
+Success criteria:
+	•	File exists at `/connectors/csv_importer.py`
+	•	Function: `import_ga4_data(csv_path)` → Returns list of WebsiteMetricsSchema instances
+	•	Function: `import_ads_data(csv_path)` → Returns list of AdsMetricsSchema instances (splits Google/Meta by platform field)
+	•	Function: `import_email_data(csv_path)` → Returns list of EmailMetricsSchema instances
+	•	Function: `import_crm_data(csv_path)` → Returns list of CrmMetricsSchema instances
+	•	Each function validates schemas before returning
+Test before moving on: from connectors.csv_importer import import_ga4_data
+
+ga4_records = import_ga4_data('data/website_performance_2025.csv')
+print(f"Imported {len(ga4_records)} records")  # Should be 12
+
+# Validate each one
+for record in ga4_records:
+    try:
+        record.validate()
+        print(f"✓ {record.metric_date}: Valid")
+    except Exception as e:
+        print(f"✗ {record.metric_date}: {e}")
+        raise
+
+Task 3: Create database_schema.sql
+Deliverable: SQL file that creates 4 tables with exact columns from schemas.
+Success criteria:
+	•	File exists at `/database/schema.sql`
+	•	Table `metricsAnalytics` with 22 columns (all NOT NULL except is_synthetic)
+	•	Table `metricsAds` with 25 columns (platform field required)
+	•	Table `metricsEmail` with 27 columns (all NOT NULL except is_synthetic)
+	•	Table `metricsCrm` with 33 columns (all NOT NULL except is_synthetic)
+	•	Primary keys: (organization_id, metric_date, platform for ads table)
+	•	Indexes on organization_id, metric_date
+	•	Can run: `psql < database/schema.sql` and tables are created
+Test before moving on:
+
+-- After running schema.sql
+SELECT COUNT(*) FROM metricsAnalytics;  -- Should return 0
+SELECT COUNT(*) FROM metricsAds;  -- Should return 0
+SELECT COUNT(*) FROM metricsEmail;  -- Should return 0
+SELECT COUNT(*) FROM metricsCrm;  -- Should return 0
+
+Task 4: Create data_loader.py
+Deliverable: Python file that validates schemas AND inserts to database.
+Success criteria:
+	•	File exists at `/loaders/data_loader.py`
+	•	Function: `load_ga4_data(csv_path, db_connection)`
+	•	Calls `import_ga4_data(csv_path)`
+	•	For each record: calls `record.validate()`
+	•	If validation fails: STOP and raise exception with exact error message
+	•	If valid: INSERT to metricsAnalytics
+	•	Return: {status: “SUCCESS”, records_inserted: N} or {status: “FAILED”, error: “…”}
+	•	Same for load_ads_data(), load_email_data(), load_crm_data()
+Test before moving on:
+
+from loaders.data_loader import load_ga4_data
+import psycopg2
+
+conn = psycopg2.connect("postgresql://...")
+result = load_ga4_data('data/website_performance_2025.csv', conn)
+print(result)  # {status: "SUCCESS", records_inserted: 12}
+
+# Verify in database
+cursor = conn.cursor()
+cursor.execute("SELECT COUNT(*) FROM metricsAnalytics")
+print(f"Database contains: {cursor.fetchone()[0]} records")  # Should be 12
+
+Task 5: Create data_verification.py
+Deliverable: Python file that runs quality checks after all data loaded.
+Success criteria:
+	•	File exists at `/verification/data_verification.py`
+	•	Function: `verify_all_data(db_connection)` runs checks:
+checks = {
+  "metricsAnalytics": {
+    "row_count": 12,
+    "null_count": 0,
+    "synthetic_count": 0,
+    "date_range": ["2025-01-01", "2025-12-31"]
+  },
+  "metricsAds_google": {
+    "row_count": 12,
+    "null_count": 0,
+    "synthetic_count": 0
+  },
+  "metricsAds_meta": {
+    "row_count": 12,
+    "null_count": 0,
+    "synthetic_count": 0
+  },
+  "metricsEmail": {
+    "row_count": 12,
+    "null_count": 0,
+    "synthetic_count": 0
+  },
+  "metricsCrm": {
+    "row_count": 12,
+    "null_count": 0,
+    "synthetic_count": 0
+  }
+}
+
+
+	•	Returns: {all_passed: bool, results: {table: check_results}}
+
+Test before moving on:
+
+from verification.data_verification import verify_all_data
+
+result = verify_all_data(conn)
+print(result)
+# Expected:
+# {
+#   "all_passed": True,
+#   "results": {
+#     "metricsAnalytics": {
+#       "row_count": {"passed": True, "expected": 12, "actual": 12},
+#       "null_count": {"passed": True, "expected": 0, "actual": 0},
+#       "synthetic_count": {"passed": True, "expected": 0, "actual": 0}
+#     },
+#     ...
+#   }
+# }
+
+Task 6: Create main_pipeline.py (Data Pipeline Orchestrator)
+Deliverable: Single entry point that runs the entire pipeline.
+Success criteria:
+	•	File exists at `/main_pipeline.py`
+	•	Function: `run_full_pipeline(csv_directory, db_connection)`
+
+steps = [
+  ("GA4 Import", load_ga4_data),
+  ("Google Ads Import", load_google_ads_data),
+  ("Meta Ads Import", load_meta_ads_data),
+  ("Email Import", load_email_data),
+  ("CRM Import", load_crm_data),
+  ("Verification", verify_all_data),
+]
+
+for step_name, step_func in steps:
+  print(f"▶ {step_name}...")
+  result = step_func(...)
+  if result["status"] == "FAILED":
+    print(f"✗ FAILED: {result['error']}")
+    return {"status": "FAILED", "failed_at": step_name}
+  else:
+    print(f"✓ {step_name} complete")
+
+return {"status": "SUCCESS", "all_steps_completed": True}
+
+Test before moving on:
+
+from main_pipeline import run_full_pipeline
+
+result = run_full_pipeline('data/', conn)
+print(result)
+# Expected:
+# {
+#   "status": "SUCCESS",
+#   "all_steps_completed": True,
+#   "steps": [
+#     {"step": "GA4 Import", "status": "SUCCESS", "records": 12},
+#     {"step": "Google Ads Import", "status": "SUCCESS", "records": 12},
+#     {"step": "Meta Ads Import", "status": "SUCCESS", "records": 12},
+#     {"step": "Email Import", "status": "SUCCESS", "records": 12},
+#     {"step": "CRM Import", "status": "SUCCESS", "records": 12},
+#     {"step": "Verification", "status": "SUCCESS", "all_checks_passed": True}
+#   ]
+# }
+
+
+Task 7: Create README_DATA_PIPELINE.md
+Deliverable: Documentation for how to run the pipeline.
+Content:
+
+# PrecisionTools Pro - Data Pipeline
+
+## Prerequisites
+- Python 3.8+
+- PostgreSQL
+- Installed dependencies: pandas, psycopg2
+
+## Step 1: Set up database
+\`\`\`bash
+psql < database/schema.sql
+\`\`\`
+
+## Step 2: Run data pipeline
+\`\`\`python
+from main_pipeline import run_full_pipeline
+import psycopg2
+
+conn = psycopg2.connect("postgresql://user:password@localhost/ptp_analytics")
+result = run_full_pipeline('data/', conn)
+print(result)
+\`\`\`
+
+## Expected Output
+
+✓ GA4 Import complete ✓ Google Ads Import complete ✓ Meta Ads Import complete ✓ Email Import complete ✓ CRM Import complete ✓ Verification complete
+Status: SUCCESS - 60 records loaded (12 per source)
+
+
+## If Something Fails
+The pipeline STOPS immediately and shows:
+- Which step failed
+- Exact error message
+- Which record caused the error
+- Do NOT fix by adding synthetic data
+- Fix by correcting the CSV or schema
+
+Summary
+7 deliverables, in order:
+	1.	schema_definitions.py ← Code contract
+	2.	csv_importer.py ← CSV → Schema instances
+	3.	database_schema.sql ← Database tables
+	4.	data_loader.py ← Validate + Insert
+	5.	data_verification.py ← Quality checks
+	6.	main_pipeline.py ← Orchestrator
+	7.	README_data_pipeline.md ← Documentation
+Each one tested BEFORE moving to the next.
+Result: 113 real metrics in database, zero synthetic data, complete traceability.
+When you’re done with all 7, the system is ready for engines. NOT before.
+Send back screenshots of:
+	•	Each Python file created
+	•	Database tables created
+	•	Output of running main_pipeline.py showing all steps SUCCESS
+	•	Output of verify_all_data() showing all checks PASSED
+Then we know data pipeline is solid and can start building engines.”
+This is measurable, specific, sequential, and testable. No ambiguity.
