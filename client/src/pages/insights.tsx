@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
+import { formatCompactNumber, formatCompactCurrency } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -135,15 +136,19 @@ export default function Insights() {
       return isNaN(num) ? 0 : num;
     };
     
+    
     // Analytics insight
     if (metrics.analytics.recordCount > 0) {
       const bounceRate = safeParseFloat(metrics.analytics.avgBounceRate);
+      const totalUsers = metrics.analytics.totalUsers || 0;
+      const totalSessions = metrics.analytics.totalSessions || 0;
+      const totalPageViews = metrics.analytics.totalPageViews || 0;
       insights.push({
         id: "analytics",
         type: "performance",
-        title: `${(metrics.analytics.totalUsers || 0).toLocaleString()} Total Users Analyzed`,
-        description: `Website analytics shows ${(metrics.analytics.totalSessions || 0).toLocaleString()} sessions with ${bounceRate.toFixed(1)}% bounce rate.`,
-        metric: (metrics.analytics.totalPageViews || 0).toLocaleString(),
+        title: `${formatCompactNumber(totalUsers)} Total Users Analyzed`,
+        description: `Website analytics shows ${formatCompactNumber(totalSessions)} sessions with ${bounceRate.toFixed(1)}% bounce rate.`,
+        metric: formatCompactNumber(totalPageViews),
         metricLabel: "page views",
         icon: BarChart3,
         color: bounceRate > 50 ? "text-orange-500" : "text-blue-500",
@@ -157,7 +162,7 @@ export default function Insights() {
       insights.push({
         id: "ads",
         type: "advertising",
-        title: `$${spend.toLocaleString()} Ad Spend Analyzed`,
+        title: `${formatCompactCurrency(spend)} Ad Spend Analyzed`,
         description: `Advertising data shows ${metrics.ads.totalConversions || 0} conversions with ${roas.toFixed(2)}x average ROAS.`,
         metric: `${roas.toFixed(1)}x`,
         metricLabel: "avg ROAS",
@@ -173,9 +178,9 @@ export default function Insights() {
       insights.push({
         id: "crm",
         type: "revenue",
-        title: `$${revenue.toLocaleString()} Revenue Tracked`,
-        description: `CRM data shows ${metrics.crm.totalDeals || 0} deals closed with $${pipeline.toLocaleString()} in pipeline.`,
-        metric: pipeline > 0 ? `$${(pipeline / 1000).toFixed(0)}K` : "$0",
+        title: `${formatCompactCurrency(revenue)} Revenue Tracked`,
+        description: `CRM data shows ${metrics.crm.totalDeals || 0} deals closed with ${formatCompactCurrency(pipeline)} in pipeline.`,
+        metric: formatCompactCurrency(pipeline),
         metricLabel: "pipeline value",
         icon: DollarSign,
         color: "text-green-500",
@@ -185,10 +190,11 @@ export default function Insights() {
     // Email insight
     if (metrics.email.recordCount > 0) {
       const openRate = safeParseFloat(metrics.email.avgOpenRate);
+      const totalSent = metrics.email.totalSent || 0;
       insights.push({
         id: "email",
         type: "engagement",
-        title: `${(metrics.email.totalSent || 0).toLocaleString()} Emails Analyzed`,
+        title: `${formatCompactNumber(totalSent)} Emails Analyzed`,
         description: `Email performance shows ${openRate.toFixed(1)}% average open rate across campaigns.`,
         metric: `${openRate.toFixed(1)}%`,
         metricLabel: "open rate",

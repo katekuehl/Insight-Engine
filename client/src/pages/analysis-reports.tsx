@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,6 +47,7 @@ function getStatusBadge(status: string | null) {
 
 export default function AnalysisReports() {
   const { organization } = useAuth();
+  const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
@@ -162,46 +163,53 @@ export default function AnalysisReports() {
           ) : filteredAnalyses.length > 0 ? (
             <div className="space-y-3">
               {filteredAnalyses.map((analysis) => (
-                <Link key={analysis.id} href={`/analysis/reports/${analysis.id}`} data-testid={`link-report-${analysis.id}`}>
-                  <div 
-                    className="flex items-center justify-between p-4 border rounded-lg hover-elevate cursor-pointer"
-                    data-testid={`report-${analysis.id}`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center">
-                        <FileText className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium">{analysis.name}</h3>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {analysis.createdAt && formatDistanceToNow(new Date(analysis.createdAt), { addSuffix: true })}
-                          </span>
-                          {analysis.enginesSelected && (
-                            <span>{analysis.enginesSelected.length} engines</span>
-                          )}
-                          {analysis.dataSources && (
-                            <span>{analysis.dataSources.length} sources</span>
-                          )}
-                        </div>
+                <div 
+                  key={analysis.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover-elevate"
+                  data-testid={`report-${analysis.id}`}
+                >
+                  <Link href={`/analysis/reports/${analysis.id}`} data-testid={`link-report-${analysis.id}`} className="flex items-center gap-4 flex-1 cursor-pointer">
+                    <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center">
+                      <FileText className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium">{analysis.name}</h3>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {analysis.createdAt && formatDistanceToNow(new Date(analysis.createdAt), { addSuffix: true })}
+                        </span>
+                        {analysis.enginesSelected && (
+                          <span>{analysis.enginesSelected.length} engines</span>
+                        )}
+                        {analysis.dataSources && (
+                          <span>{analysis.dataSources.length} sources</span>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      {getStatusBadge(analysis.status)}
-                      {analysis.status === "completed" && (
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={(e) => e.preventDefault()} data-testid={`button-download-${analysis.id}`}>
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={(e) => e.preventDefault()} data-testid={`button-share-${analysis.id}`}>
-                            <Share2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
+                  </Link>
+                  <div className="flex items-center gap-3">
+                    {getStatusBadge(analysis.status)}
+                    {analysis.status === "completed" && (
+                      <div className="flex gap-1">
+                        <Button 
+                          variant="default" 
+                          size="sm" 
+                          onClick={() => navigate(`/insights?runId=${analysis.id}`)}
+                          data-testid={`button-view-results-${analysis.id}`}
+                        >
+                          View Results
+                        </Button>
+                        <Button variant="ghost" size="icon" data-testid={`button-download-${analysis.id}`}>
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" data-testid={`button-share-${analysis.id}`}>
+                          <Share2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           ) : (

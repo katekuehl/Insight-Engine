@@ -5,6 +5,7 @@ import { Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatCompactNumber, formatCompactCurrency } from "@/lib/utils";
 
 interface DashboardMetrics {
   analytics: {
@@ -74,20 +75,19 @@ export default function Dashboard() {
     );
   }
 
+  // Use shared compact formatters from utils
   const formatNumber = (num: number | string | undefined): string => {
     if (num === undefined || num === null) return "—";
     const n = typeof num === 'string' ? parseFloat(num) : num;
     if (isNaN(n)) return "—";
-    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
-    if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
-    return n.toLocaleString();
+    return formatCompactNumber(n);
   };
 
   const formatCurrency = (amount: string | number | undefined): string => {
     if (amount === undefined || amount === null) return "—";
     const n = typeof amount === 'string' ? parseFloat(amount) : amount;
     if (isNaN(n)) return "—";
-    return `$${formatNumber(n)}`;
+    return formatCompactCurrency(n);
   };
 
   const hasData = metrics && metrics.summary.totalDataPoints > 0;

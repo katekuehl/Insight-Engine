@@ -1144,7 +1144,7 @@ export async function registerRoutes(
       const totalPipeline = crmData.reduce((sum, r) => sum + parseFloat(r.pipelineValue || '0'), 0);
       
       // Email metrics
-      const totalEmailsSent = (emailData as any[]).reduce((sum, r) => sum + (r.sent || 0), 0);
+      const totalEmailsSent = (emailData as any[]).reduce((sum, r) => sum + (r.totalEmailsSent || 0), 0);
       const totalOpens = (emailData as any[]).reduce((sum, r) => sum + (r.opens || 0), 0);
       const avgOpenRate = totalEmailsSent > 0 ? ((totalOpens / totalEmailsSent) * 100).toFixed(1) : 0;
       
