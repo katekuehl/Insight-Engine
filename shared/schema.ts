@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, boolean, timestamp, integer, decimal, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, timestamp, integer, decimal, jsonb, serial, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -373,6 +373,186 @@ export const analysisAuditLog = pgTable("analysis_audit_log", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// ============================================
+// PIPELINE METRICS TABLES (Python Pipeline)
+// These match the Python dataclass schemas exactly
+// ============================================
+
+// Pipeline Website Metrics (GA4) - 22 metrics
+export const pipelineMetricsWebsite = pgTable("pipeline_metrics_website", {
+  id: serial("id").primaryKey(),
+  metricDate: date("metric_date").notNull(),
+  organizationId: varchar("organization_id", { length: 255 }).notNull(),
+  
+  // Core metrics
+  sessions: integer("sessions").notNull(),
+  users: integer("users").notNull(),
+  newUsers: integer("new_users").notNull(),
+  pageviews: integer("pageviews").notNull(),
+  pagesPerSession: decimal("pages_per_session", { precision: 10, scale: 4 }).notNull(),
+  avgSessionDuration: decimal("avg_session_duration", { precision: 12, scale: 2 }).notNull(),
+  bounceRate: decimal("bounce_rate", { precision: 6, scale: 2 }).notNull(),
+  goalCompletions: integer("goal_completions").notNull(),
+  goalConversionRate: decimal("goal_conversion_rate", { precision: 6, scale: 2 }).notNull(),
+  
+  // Traffic source breakdown
+  organicSessions: integer("organic_sessions").notNull(),
+  directSessions: integer("direct_sessions").notNull(),
+  paidSessions: integer("paid_sessions").notNull(),
+  socialSessions: integer("social_sessions").notNull(),
+  referralSessions: integer("referral_sessions").notNull(),
+  emailSessions: integer("email_sessions").notNull(),
+  
+  // Device breakdown
+  desktopSessions: integer("desktop_sessions").notNull(),
+  mobileSessions: integer("mobile_sessions").notNull(),
+  tabletSessions: integer("tablet_sessions").notNull(),
+  
+  // Data quality
+  isSynthetic: boolean("is_synthetic").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Pipeline Ads Metrics (Google Ads, Meta Ads) - platform-specific
+export const pipelineMetricsAds = pgTable("pipeline_metrics_ads", {
+  id: serial("id").primaryKey(),
+  metricDate: date("metric_date").notNull(),
+  organizationId: varchar("organization_id", { length: 255 }).notNull(),
+  platform: varchar("platform", { length: 50 }).notNull(), // 'google_ads' or 'meta_ads'
+  
+  // Core ad metrics
+  impressions: integer("impressions").notNull(),
+  clicks: integer("clicks").notNull(),
+  ctr: decimal("ctr", { precision: 8, scale: 4 }).notNull(),
+  spend: decimal("spend", { precision: 12, scale: 2 }).notNull(),
+  conversions: integer("conversions").notNull(),
+  conversionRate: decimal("conversion_rate", { precision: 8, scale: 4 }).notNull(),
+  cpc: decimal("cpc", { precision: 10, scale: 2 }).notNull(),
+  cpa: decimal("cpa", { precision: 12, scale: 2 }).notNull(),
+  roas: decimal("roas", { precision: 10, scale: 4 }).notNull(),
+  
+  // Google Ads specific (NULL for Meta)
+  searchSpend: decimal("search_spend", { precision: 12, scale: 2 }),
+  displaySpend: decimal("display_spend", { precision: 12, scale: 2 }),
+  remarketingSpend: decimal("remarketing_spend", { precision: 12, scale: 2 }),
+  
+  // Meta Ads specific (NULL for Google)
+  facebookSpend: decimal("facebook_spend", { precision: 12, scale: 2 }),
+  instagramSpend: decimal("instagram_spend", { precision: 12, scale: 2 }),
+  audienceNetworkSpend: decimal("audience_network_spend", { precision: 12, scale: 2 }),
+  
+  // Data quality
+  isSynthetic: boolean("is_synthetic").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Pipeline Email Metrics (Pardot) - 27 metrics
+export const pipelineMetricsEmail = pgTable("pipeline_metrics_email", {
+  id: serial("id").primaryKey(),
+  metricDate: date("metric_date").notNull(),
+  organizationId: varchar("organization_id", { length: 255 }).notNull(),
+  
+  // Subscriber metrics
+  totalSubscribers: integer("total_subscribers").notNull(),
+  newSubscribers: integer("new_subscribers").notNull(),
+  unsubscribes: integer("unsubscribes").notNull(),
+  unsubscribeRate: decimal("unsubscribe_rate", { precision: 6, scale: 4 }).notNull(),
+  
+  // Campaign volume
+  campaignsSent: integer("campaigns_sent").notNull(),
+  totalEmailsSent: integer("total_emails_sent").notNull(),
+  delivered: integer("delivered").notNull(),
+  bounced: integer("bounced").notNull(),
+  bounceRate: decimal("bounce_rate", { precision: 6, scale: 4 }).notNull(),
+  
+  // Engagement metrics
+  totalOpens: integer("total_opens").notNull(),
+  openRate: decimal("open_rate", { precision: 6, scale: 4 }).notNull(),
+  uniqueOpens: integer("unique_opens").notNull(),
+  uniqueOpenRate: decimal("unique_open_rate", { precision: 6, scale: 4 }).notNull(),
+  totalClicks: integer("total_clicks").notNull(),
+  clickRate: decimal("click_rate", { precision: 6, scale: 4 }).notNull(),
+  clickToOpenRate: decimal("click_to_open_rate", { precision: 8, scale: 4 }).notNull(),
+  uniqueClicks: integer("unique_clicks").notNull(),
+  uniqueClickRate: decimal("unique_click_rate", { precision: 6, scale: 4 }).notNull(),
+  
+  // Conversion metrics
+  conversions: integer("conversions").notNull(),
+  conversionRate: decimal("conversion_rate", { precision: 6, scale: 4 }).notNull(),
+  emailGeneratedLeads: integer("email_generated_leads").notNull(),
+  
+  // Email type breakdown
+  newsletterSent: integer("newsletter_sent").notNull(),
+  promotionalSent: integer("promotional_sent").notNull(),
+  nurtureSent: integer("nurture_sent").notNull(),
+  transactionalSent: integer("transactional_sent").notNull(),
+  
+  // Data quality
+  isSynthetic: boolean("is_synthetic").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Pipeline CRM Metrics (Salesforce) - 33 metrics
+export const pipelineMetricsCrm = pgTable("pipeline_metrics_crm", {
+  id: serial("id").primaryKey(),
+  metricDate: date("metric_date").notNull(),
+  organizationId: varchar("organization_id", { length: 255 }).notNull(),
+  
+  // Lead metrics
+  totalLeads: integer("total_leads").notNull(),
+  mqlCount: integer("mql_count").notNull(),
+  mqlConversionRate: decimal("mql_conversion_rate", { precision: 6, scale: 2 }).notNull(),
+  sqlCount: integer("sql_count").notNull(),
+  sqlConversionRate: decimal("sql_conversion_rate", { precision: 6, scale: 2 }).notNull(),
+  
+  // Opportunity metrics
+  opportunitiesCreated: integer("opportunities_created").notNull(),
+  opportunityConversionRate: decimal("opportunity_conversion_rate", { precision: 6, scale: 2 }).notNull(),
+  pipelineValue: decimal("pipeline_value", { precision: 14, scale: 2 }).notNull(),
+  openOpportunities: integer("open_opportunities").notNull(),
+  
+  // Deal outcomes
+  closedWon: integer("closed_won").notNull(),
+  closedLost: integer("closed_lost").notNull(),
+  winRate: decimal("win_rate", { precision: 6, scale: 2 }).notNull(),
+  lossRate: decimal("loss_rate", { precision: 6, scale: 2 }).notNull(),
+  
+  // Revenue metrics
+  monthlyRevenue: decimal("monthly_revenue", { precision: 14, scale: 2 }).notNull(),
+  cumulativeRevenueYtd: decimal("cumulative_revenue_ytd", { precision: 14, scale: 2 }).notNull(),
+  avgDealSize: decimal("avg_deal_size", { precision: 12, scale: 2 }).notNull(),
+  
+  // Customer metrics
+  newCustomers: integer("new_customers").notNull(),
+  churnedCustomers: integer("churned_customers").notNull(),
+  totalActiveCustomers: integer("total_active_customers").notNull(),
+  churnRate: decimal("churn_rate", { precision: 6, scale: 4 }).notNull(),
+  avgSalesCycleDays: integer("avg_sales_cycle_days").notNull(),
+  
+  // Lead source breakdown
+  websiteLeads: integer("website_leads").notNull(),
+  paidAdsLeads: integer("paid_ads_leads").notNull(),
+  emailMarketingLeads: integer("email_marketing_leads").notNull(),
+  referralLeads: integer("referral_leads").notNull(),
+  tradeShowsLeads: integer("trade_shows_leads").notNull(),
+  otherLeads: integer("other_leads").notNull(),
+  
+  // Product revenue breakdown
+  smartdiagRevenue: decimal("smartdiag_revenue", { precision: 12, scale: 2 }).notNull(),
+  liftmasterRevenue: decimal("liftmaster_revenue", { precision: 12, scale: 2 }).notNull(),
+  toolhubRevenue: decimal("toolhub_revenue", { precision: 12, scale: 2 }).notNull(),
+  calibrationKitsRevenue: decimal("calibration_kits_revenue", { precision: 12, scale: 2 }).notNull(),
+  
+  // Sales team metrics
+  salesTeamSize: integer("sales_team_size").notNull(),
+  revenuePerRep: decimal("revenue_per_rep", { precision: 12, scale: 2 }).notNull(),
+  dealsPerRep: decimal("deals_per_rep", { precision: 6, scale: 2 }).notNull(),
+  
+  // Data quality
+  isSynthetic: boolean("is_synthetic").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // CRM metrics - contacts, deals, pipeline data
 export const metricsCrm = pgTable("metrics_crm", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -542,6 +722,27 @@ export const insertAnalysisAuditLogSchema = createInsertSchema(analysisAuditLog)
   createdAt: true,
 });
 
+// Pipeline metrics insert schemas (Python pipeline tables)
+export const insertPipelineMetricsWebsiteSchema = createInsertSchema(pipelineMetricsWebsite).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPipelineMetricsAdsSchema = createInsertSchema(pipelineMetricsAds).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPipelineMetricsEmailSchema = createInsertSchema(pipelineMetricsEmail).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPipelineMetricsCrmSchema = createInsertSchema(pipelineMetricsCrm).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type Organization = typeof organizations.$inferSelect;
 
@@ -615,6 +816,19 @@ export type DataValidationLog = typeof dataValidationLog.$inferSelect;
 
 export type InsertAnalysisAuditLog = z.infer<typeof insertAnalysisAuditLogSchema>;
 export type AnalysisAuditLog = typeof analysisAuditLog.$inferSelect;
+
+// Pipeline metrics types (Python pipeline tables)
+export type InsertPipelineMetricsWebsite = z.infer<typeof insertPipelineMetricsWebsiteSchema>;
+export type PipelineMetricsWebsite = typeof pipelineMetricsWebsite.$inferSelect;
+
+export type InsertPipelineMetricsAds = z.infer<typeof insertPipelineMetricsAdsSchema>;
+export type PipelineMetricsAds = typeof pipelineMetricsAds.$inferSelect;
+
+export type InsertPipelineMetricsEmail = z.infer<typeof insertPipelineMetricsEmailSchema>;
+export type PipelineMetricsEmail = typeof pipelineMetricsEmail.$inferSelect;
+
+export type InsertPipelineMetricsCrm = z.infer<typeof insertPipelineMetricsCrmSchema>;
+export type PipelineMetricsCrm = typeof pipelineMetricsCrm.$inferSelect;
 
 // User-friendly engine display names
 export const ENGINE_DISPLAY_NAMES: Record<string, string> = {

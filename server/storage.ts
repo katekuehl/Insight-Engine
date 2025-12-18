@@ -6,6 +6,7 @@ import {
   impersonationLogs,
   dags, dagTasks, dagRuns, taskInstances, xcomData, analysisOutputs,
   analysisRuns, analysisReports, recommendedActions,
+  pipelineMetricsWebsite, pipelineMetricsAds, pipelineMetricsEmail, pipelineMetricsCrm,
   type User, type InsertUser,
   type Organization, type InsertOrganization,
   type Invite, type InsertInvite,
@@ -27,6 +28,10 @@ import {
   type AnalysisRun, type InsertAnalysisRun,
   type AnalysisReport, type InsertAnalysisReport,
   type RecommendedAction, type InsertRecommendedAction,
+  type PipelineMetricsWebsite,
+  type PipelineMetricsAds,
+  type PipelineMetricsEmail,
+  type PipelineMetricsCrm,
 } from "@shared/schema";
 import { sql, count } from "drizzle-orm";
 
@@ -164,6 +169,12 @@ export interface IStorage {
   getMetricsAdsSample(organizationId: string, limit: number): Promise<MetricsAds[]>;
   getMetricsCrmSample(organizationId: string, limit: number): Promise<MetricsCrm[]>;
   getMetricsEmailSample(organizationId: string, limit: number): Promise<MetricsEmail[]>;
+  
+  // Pipeline metrics methods (Python pipeline data)
+  getPipelineMetricsWebsite(organizationId: string): Promise<PipelineMetricsWebsite[]>;
+  getPipelineMetricsAds(organizationId: string, platform?: string): Promise<PipelineMetricsAds[]>;
+  getPipelineMetricsEmail(organizationId: string): Promise<PipelineMetricsEmail[]>;
+  getPipelineMetricsCrm(organizationId: string): Promise<PipelineMetricsCrm[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -712,6 +723,39 @@ export class DatabaseStorage implements IStorage {
       .where(eq(metricsEmail.organizationId, organizationId))
       .orderBy(desc(metricsEmail.metricDate))
       .limit(limit);
+  }
+
+  // Pipeline metrics methods (Python pipeline data)
+  async getPipelineMetricsWebsite(organizationId: string): Promise<PipelineMetricsWebsite[]> {
+    return db.select().from(pipelineMetricsWebsite)
+      .where(eq(pipelineMetricsWebsite.organizationId, organizationId))
+      .orderBy(desc(pipelineMetricsWebsite.metricDate));
+  }
+
+  async getPipelineMetricsAds(organizationId: string, platform?: string): Promise<PipelineMetricsAds[]> {
+    if (platform) {
+      return db.select().from(pipelineMetricsAds)
+        .where(and(
+          eq(pipelineMetricsAds.organizationId, organizationId),
+          eq(pipelineMetricsAds.platform, platform)
+        ))
+        .orderBy(desc(pipelineMetricsAds.metricDate));
+    }
+    return db.select().from(pipelineMetricsAds)
+      .where(eq(pipelineMetricsAds.organizationId, organizationId))
+      .orderBy(desc(pipelineMetricsAds.metricDate));
+  }
+
+  async getPipelineMetricsEmail(organizationId: string): Promise<PipelineMetricsEmail[]> {
+    return db.select().from(pipelineMetricsEmail)
+      .where(eq(pipelineMetricsEmail.organizationId, organizationId))
+      .orderBy(desc(pipelineMetricsEmail.metricDate));
+  }
+
+  async getPipelineMetricsCrm(organizationId: string): Promise<PipelineMetricsCrm[]> {
+    return db.select().from(pipelineMetricsCrm)
+      .where(eq(pipelineMetricsCrm.organizationId, organizationId))
+      .orderBy(desc(pipelineMetricsCrm.metricDate));
   }
 }
 

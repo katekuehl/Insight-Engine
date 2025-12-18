@@ -1942,5 +1942,137 @@ export async function registerRoutes(
     }
   });
 
+  // ============================================
+  // PIPELINE METRICS ENDPOINTS (Python pipeline data)
+  // These return REAL data loaded by the Python pipeline - no synthetic fallback
+  // ============================================
+
+  app.get("/api/organization/:orgId/pipeline/website", async (req, res) => {
+    try {
+      const data = await storage.getPipelineMetricsWebsite(req.params.orgId);
+      if (data.length === 0) {
+        return res.status(404).json({ 
+          error: "No website metrics found",
+          message: "Run the Python data pipeline to load data"
+        });
+      }
+      res.json(data);
+    } catch (error) {
+      console.error("Pipeline website metrics error:", error);
+      res.status(500).json({ error: "Failed to fetch pipeline website metrics" });
+    }
+  });
+
+  app.get("/api/organization/:orgId/pipeline/ads", async (req, res) => {
+    try {
+      const { platform } = req.query;
+      const data = await storage.getPipelineMetricsAds(
+        req.params.orgId, 
+        platform as string | undefined
+      );
+      if (data.length === 0) {
+        return res.status(404).json({ 
+          error: "No ads metrics found",
+          message: "Run the Python data pipeline to load data"
+        });
+      }
+      res.json(data);
+    } catch (error) {
+      console.error("Pipeline ads metrics error:", error);
+      res.status(500).json({ error: "Failed to fetch pipeline ads metrics" });
+    }
+  });
+
+  app.get("/api/organization/:orgId/pipeline/email", async (req, res) => {
+    try {
+      const data = await storage.getPipelineMetricsEmail(req.params.orgId);
+      if (data.length === 0) {
+        return res.status(404).json({ 
+          error: "No email metrics found",
+          message: "Run the Python data pipeline to load data"
+        });
+      }
+      res.json(data);
+    } catch (error) {
+      console.error("Pipeline email metrics error:", error);
+      res.status(500).json({ error: "Failed to fetch pipeline email metrics" });
+    }
+  });
+
+  app.get("/api/organization/:orgId/pipeline/crm", async (req, res) => {
+    try {
+      const data = await storage.getPipelineMetricsCrm(req.params.orgId);
+      if (data.length === 0) {
+        return res.status(404).json({ 
+          error: "No CRM metrics found",
+          message: "Run the Python data pipeline to load data"
+        });
+      }
+      res.json(data);
+    } catch (error) {
+      console.error("Pipeline CRM metrics error:", error);
+      res.status(500).json({ error: "Failed to fetch pipeline CRM metrics" });
+    }
+  });
+
+  // Combined pipeline data summary
+  app.get("/api/organization/:orgId/pipeline/summary", async (req, res) => {
+    try {
+      const orgId = req.params.orgId;
+      const [website, ads, email, crm] = await Promise.all([
+        storage.getPipelineMetricsWebsite(orgId),
+        storage.getPipelineMetricsAds(orgId),
+        storage.getPipelineMetricsEmail(orgId),
+        storage.getPipelineMetricsCrm(orgId),
+      ]);
+
+      const hasPipelineData = website.length > 0 || ads.length > 0 || 
+                              email.length > 0 || crm.length > 0;
+
+      if (!hasPipelineData) {
+        return res.status(404).json({
+          error: "No pipeline data found",
+          message: "Run the Python data pipeline to load data",
+          counts: { website: 0, ads: 0, email: 0, crm: 0 }
+        });
+      }
+
+      // Collect all dates from all sources to compute accurate range
+      const allDates: string[] = [];
+      website.forEach(w => w.metricDate && allDates.push(w.metricDate));
+      ads.forEach(a => a.metricDate && allDates.push(a.metricDate));
+      email.forEach(e => e.metricDate && allDates.push(e.metricDate));
+      crm.forEach(c => c.metricDate && allDates.push(c.metricDate));
+      
+      const sortedDates = allDates.sort();
+      const startDate = sortedDates.length > 0 ? sortedDates[0] : null;
+      const endDate = sortedDates.length > 0 ? sortedDates[sortedDates.length - 1] : null;
+
+      res.json({
+        counts: {
+          website: website.length,
+          ads: ads.length,
+          email: email.length,
+          crm: crm.length,
+          total: website.length + ads.length + email.length + crm.length
+        },
+        dateRange: {
+          start: startDate,
+          end: endDate
+        },
+        latestMetrics: {
+          website: website.length > 0 ? website[0] : null,
+          googleAds: ads.find(a => a.platform === 'google_ads') || null,
+          metaAds: ads.find(a => a.platform === 'meta_ads') || null,
+          email: email.length > 0 ? email[0] : null,
+          crm: crm.length > 0 ? crm[0] : null
+        }
+      });
+    } catch (error) {
+      console.error("Pipeline summary error:", error);
+      res.status(500).json({ error: "Failed to fetch pipeline summary" });
+    }
+  });
+
   return httpServer;
 }
