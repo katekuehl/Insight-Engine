@@ -135,6 +135,8 @@ class AdsMetricsSchema:
             raise ValueError(f"cpc cannot be negative: {self.cpc}")
         if self.cpa < 0:
             raise ValueError(f"cpa cannot be negative: {self.cpa}")
+        if self.roas < 0:
+            raise ValueError(f"roas cannot be negative: {self.roas}")
         
         # Check: CTR 0-100
         if not (0 <= self.ctr <= 100):
@@ -147,6 +149,26 @@ class AdsMetricsSchema:
         # Check: Impressions >= clicks
         if self.clicks > self.impressions:
             raise ValueError(f"clicks ({self.clicks}) > impressions ({self.impressions})")
+        
+        # Check: CPC consistency - if spend > 0 and clicks > 0, CPC must be > 0
+        if self.spend > 0 and self.clicks > 0:
+            expected_cpc = self.spend / self.clicks
+            if self.cpc <= 0:
+                raise ValueError(f"CPC must be > 0 when spend={self.spend} and clicks={self.clicks}")
+            if abs(self.cpc - expected_cpc) > (expected_cpc * 0.1):
+                raise ValueError(f"CPC ({self.cpc}) doesn't match spend/clicks ({expected_cpc:.2f})")
+        
+        # Check: CPA consistency - if spend > 0 and conversions > 0, CPA must be > 0
+        if self.spend > 0 and self.conversions > 0:
+            expected_cpa = self.spend / self.conversions
+            if self.cpa <= 0:
+                raise ValueError(f"CPA must be > 0 when spend={self.spend} and conversions={self.conversions}")
+            if abs(self.cpa - expected_cpa) > (expected_cpa * 0.1):
+                raise ValueError(f"CPA ({self.cpa}) doesn't match spend/conversions ({expected_cpa:.2f})")
+        
+        # Check: ROAS consistency - must be > 0 when there is spend
+        if self.spend > 0 and self.roas <= 0:
+            raise ValueError(f"ROAS must be > 0 when spend={self.spend}")
         
         # Check: Platform-specific fields
         if self.platform == "google_ads":
