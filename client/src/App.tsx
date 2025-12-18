@@ -25,6 +25,7 @@ import Analysis from "@/pages/analysis";
 import AnalysisBuilder from "@/pages/analysis-builder";
 import AnalysisReports from "@/pages/analysis-reports";
 import Insights from "@/pages/insights";
+import DebugConsole from "@/pages/debug-console";
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   const style = {
@@ -102,6 +103,14 @@ function Router() {
         <ProtectedRoute>
           <AuthenticatedLayout>
             <AnalysisReports />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/debug/:analysisRunId">
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <DebugConsole />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

@@ -25,7 +25,8 @@ import {
   Plus,
   Filter,
   Calendar,
-  User
+  User,
+  Code
 } from "lucide-react";
 import type { AnalysisRun } from "@shared/schema";
 import { formatDistanceToNow, format } from "date-fns";
@@ -206,6 +207,11 @@ export default function AnalysisReports() {
                         <Button variant="ghost" size="icon" data-testid={`button-share-${analysis.id}`}>
                           <Share2 className="h-4 w-4" />
                         </Button>
+                        <Link href={`/debug/${analysis.id}`}>
+                          <Button variant="ghost" size="icon" title="Debug Console" data-testid={`button-debug-${analysis.id}`}>
+                            <Code className="h-4 w-4" />
+                          </Button>
+                        </Link>
                       </div>
                     )}
                   </div>
