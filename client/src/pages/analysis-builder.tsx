@@ -127,6 +127,85 @@ export default function AnalysisBuilder() {
 
   const activeIntegrations = integrations?.filter(i => i.status === "active") || [];
 
+  // Poll analysis run status while running
+  const { data: analysisRunStatus } = useQuery<AnalysisRun>({
+    queryKey: [`/api/organization/${organization?.id}/analysis-runs`, currentAnalysis?.id],
+    enabled: !!organization?.id && !!currentAnalysis?.id && isRunning,
+    refetchInterval: isRunning ? 2000 : false, // Poll every 2 seconds while running
+  });
+
+  // Update currentAnalysis when we get fresh data from polling
+  const effectiveAnalysis = analysisRunStatus || currentAnalysis;
+
+  // Compute engine progress from analysis run status
+  const computeEngineProgress = () => {
+    if (!effectiveAnalysis) return [];
+    
+    const runEngines = selectedEngines.length > 0 ? selectedEngines : (effectiveAnalysis.enginesSelected || []);
+    const currentEngine = effectiveAnalysis.currentEngine;
+    const status = effectiveAnalysis.status;
+    const progressPercent = effectiveAnalysis.progressPercent || 0;
+    
+    // Find the currently running engine index
+    const currentEngineIndex = runEngines.findIndex(e => {
+      const engineDef = ENGINES.find(eng => eng.id === e);
+      return engineDef?.name === currentEngine;
+    });
+    
+    return ENGINES.filter(e => runEngines.includes(e.id)).map((engine, index) => {
+      let engineStatus: "pending" | "running" | "completed" | "failed" = "pending";
+      let engineProgress = 0;
+      let message = undefined;
+      
+      if (status === "completed") {
+        engineStatus = "completed";
+        engineProgress = 100;
+      } else if (status === "failed") {
+        if (currentEngineIndex >= 0 && index < currentEngineIndex) {
+          engineStatus = "completed";
+          engineProgress = 100;
+        } else if (index === currentEngineIndex || (currentEngineIndex === -1 && index === 0)) {
+          engineStatus = "failed";
+          engineProgress = progressPercent;
+        } else {
+          engineStatus = "pending";
+        }
+      } else if (status === "running") {
+        if (currentEngineIndex >= 0) {
+          if (index < currentEngineIndex) {
+            engineStatus = "completed";
+            engineProgress = 100;
+          } else if (index === currentEngineIndex) {
+            engineStatus = "running";
+            // Distribute progress within this engine (0-100)
+            const enginesCount = runEngines.length;
+            const progressPerEngine = 100 / enginesCount;
+            const baseProgress = currentEngineIndex * progressPerEngine;
+            engineProgress = Math.min(100, Math.max(0, ((progressPercent - baseProgress) / progressPerEngine) * 100));
+            message = `Processing ${engine.name}...`;
+          } else {
+            engineStatus = "pending";
+          }
+        } else {
+          // No current engine yet, first one is running
+          if (index === 0) {
+            engineStatus = "running";
+            engineProgress = progressPercent;
+            message = "Initializing analysis...";
+          }
+        }
+      }
+      
+      return {
+        engineId: engine.id,
+        displayName: engine.name,
+        status: engineStatus,
+        progressPercent: Math.round(engineProgress),
+        message,
+      };
+    });
+  };
+
   const createAnalysisMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("POST", `/api/organization/${organization?.id}/analysis-runs`, {
@@ -210,14 +289,18 @@ export default function AnalysisBuilder() {
     );
   }
 
-  if (isRunning && currentAnalysis) {
-    const engineProgress = ENGINES.filter(e => selectedEngines.includes(e.id)).map((engine, index) => ({
-      engineId: engine.id,
-      displayName: engine.name,
-      status: index === 0 ? "running" as const : "pending" as const,
-      progressPercent: index === 0 ? 35 : 0,
-      message: index === 0 ? "Processing your data..." : undefined,
-    }));
+  if (isRunning && effectiveAnalysis) {
+    const engineProgress = computeEngineProgress();
+    
+    // Determine overall status from the analysis run
+    const overallStatus: "running" | "completed" | "failed" = 
+      effectiveAnalysis.status === "completed" ? "completed" :
+      effectiveAnalysis.status === "failed" ? "failed" : "running";
+    
+    // Stop polling when complete
+    if (overallStatus === "completed" || overallStatus === "failed") {
+      // Allow viewing results but keep the progress tracker visible
+    }
 
     return (
       <div className="p-6">
@@ -228,13 +311,13 @@ export default function AnalysisBuilder() {
           </Button>
         </div>
         <AnalysisProgressTracker
-          analysisId={currentAnalysis.id}
-          analysisName={currentAnalysis.name}
-          startedAt={new Date(currentAnalysis.createdAt || Date.now())}
+          analysisId={effectiveAnalysis.id}
+          analysisName={effectiveAnalysis.name}
+          startedAt={new Date(effectiveAnalysis.createdAt || Date.now())}
           engines={engineProgress}
-          overallStatus="running"
-          estimatedTimeRemaining={45}
-          onViewResults={() => setLocation(`/analysis/reports/${currentAnalysis.id}`)}
+          overallStatus={overallStatus}
+          estimatedTimeRemaining={overallStatus === "running" ? Math.max(10, 60 - Math.floor((effectiveAnalysis.progressPercent || 0) * 0.6)) : undefined}
+          onViewResults={() => setLocation("/insights")}
         />
       </div>
     );
