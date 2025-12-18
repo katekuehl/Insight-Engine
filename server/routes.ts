@@ -1270,9 +1270,11 @@ export async function registerRoutes(
   app.post("/api/organization/:orgId/analysis-runs", async (req, res) => {
     try {
       const { name, enginesSelected, dataSources, dateRangeStart, dateRangeEnd, config, createdBy } = req.body;
+      const orgId = req.params.orgId;
       
+      // Create the analysis run record first
       const run = await storage.createAnalysisRun({
-        organizationId: req.params.orgId,
+        organizationId: orgId,
         name: name || `Analysis ${new Date().toISOString()}`,
         enginesSelected: enginesSelected || [],
         dataSources: dataSources || [],
@@ -1283,7 +1285,184 @@ export async function registerRoutes(
         status: "pending",
       });
       
+      // Respond immediately so UI can show the pending run
       res.json(run);
+      
+      // Capture the run ID for the async worker (only safe primitive values)
+      const runId = run.id;
+      const runOrgId = orgId;
+      const runName = run.name;
+      
+      // Execute the analysis asynchronously
+      setImmediate(async () => {
+        try {
+          console.log(`[Analysis] Starting execution for run ${runId}`);
+          
+          // Re-fetch the run from storage to get persisted, normalized data
+          const persistedRun = await storage.getAnalysisRun(runId);
+          if (!persistedRun) {
+            console.error(`[Analysis] Run ${runId} not found in storage - attempting to mark as failed`);
+            // Try to mark as failed in case this was a transient read issue
+            try {
+              await storage.updateAnalysisRun(runId, {
+                status: "failed",
+                completedAt: new Date(),
+                currentEngine: null,
+                progressPercent: 0
+              });
+            } catch (updateErr) {
+              console.error(`[Analysis] Could not update run ${runId} to failed state:`, updateErr);
+            }
+            return;
+          }
+          
+          // Check if run was already cancelled or failed
+          if (persistedRun.status === 'cancelled' || persistedRun.status === 'failed') {
+            console.log(`[Analysis] Run ${runId} already in terminal state: ${persistedRun.status}`);
+            return;
+          }
+          
+          // Use data from the persisted run, not request-scoped variables
+          const runEngines = persistedRun.enginesSelected || ["relationship_engine"];
+          const runDataSources = persistedRun.dataSources || [];
+          const runConfig = persistedRun.config || {};
+          
+          // Normalize date fields immediately - handle both Date objects and ISO strings from DB
+          const runDateStart = persistedRun.dateRangeStart 
+            ? (persistedRun.dateRangeStart instanceof Date 
+                ? persistedRun.dateRangeStart.toISOString() 
+                : String(persistedRun.dateRangeStart))
+            : undefined;
+          const runDateEnd = persistedRun.dateRangeEnd 
+            ? (persistedRun.dateRangeEnd instanceof Date 
+                ? persistedRun.dateRangeEnd.toISOString() 
+                : String(persistedRun.dateRangeEnd))
+            : undefined;
+          
+          // Update to running status
+          await storage.updateAnalysisRun(runId, { 
+            status: "running",
+            currentEngine: "data_ingestion",
+            progressPercent: 5 
+          });
+          
+          // Get the organization's metrics data for analysis
+          const [analyticsData, adsData, crmData] = await Promise.all([
+            storage.getMetricsAnalytics(runOrgId),
+            storage.getMetricsAds(runOrgId),
+            storage.getMetricsCrm(runOrgId)
+          ]);
+          
+          const totalRecords = analyticsData.length + adsData.length + crmData.length;
+          console.log(`[Analysis] Loaded ${totalRecords} records for processing`);
+          
+          if (totalRecords === 0) {
+            await storage.updateAnalysisRun(runId, {
+              status: "failed",
+              completedAt: new Date(),
+              progressPercent: 0,
+              currentEngine: null
+            });
+            console.log(`[Analysis] No data available for analysis`);
+            return;
+          }
+          
+          // Process each selected engine sequentially
+          const totalEngines = runEngines.length;
+          
+          for (let i = 0; i < runEngines.length; i++) {
+            const engine = runEngines[i];
+            const progress = Math.round(((i + 0.5) / totalEngines) * 100);
+            
+            console.log(`[Analysis] Processing engine: ${engine} (${progress}%)`);
+            await storage.updateAnalysisRun(runId, {
+              currentEngine: engine,
+              progressPercent: progress
+            });
+            
+            // Trigger the DAG for this engine
+            try {
+              const dagRun = await dagExecutor.triggerDag(
+                engine,
+                runOrgId,
+                `analysis_run_${runId}`,
+                {
+                  analysisRunId: runId,
+                  dataSources: runDataSources,
+                  dateRangeStart: runDateStart,
+                  dateRangeEnd: runDateEnd,
+                  ...runConfig
+                }
+              );
+              
+              // Update the analysis run with the DAG run ID
+              await storage.updateAnalysisRun(runId, { dagRunId: dagRun.id });
+              
+              // Process the DAG run until complete
+              let result = { completed: false, tasksRun: 0 };
+              while (!result.completed) {
+                result = await dagExecutor.processDagRun(dagRun.id);
+                if (!result.completed) {
+                  await new Promise(resolve => setTimeout(resolve, 500));
+                }
+              }
+              
+              console.log(`[Analysis] Engine ${engine} completed`);
+            } catch (dagError: any) {
+              console.error(`[Analysis] Engine ${engine} failed:`, dagError.message);
+              // Continue to next engine even if one fails
+            }
+          }
+          
+          // Mark as complete first - this is critical
+          await storage.updateAnalysisRun(runId, {
+            status: "completed",
+            completedAt: new Date(),
+            progressPercent: 100,
+            currentEngine: null
+          });
+          
+          console.log(`[Analysis] Completed run ${runId}`);
+          
+          // Generate analysis report - wrapped in try/catch so failures don't break the run
+          try {
+            const report = await storage.createAnalysisReport({
+              organizationId: runOrgId,
+              analysisRunId: runId,
+              reportName: `Analysis Report - ${runName}`,
+              insightsSummary: `Completed analysis of ${totalRecords} data points across ${runEngines.length} analytical engines.`,
+              keyFindings: [
+                { finding: `Analyzed ${analyticsData.length} website analytics records` },
+                { finding: `Processed ${adsData.length} advertising metrics` },
+                { finding: `Reviewed ${crmData.length} CRM data points` }
+              ],
+              metrics: {
+                dataPointsAnalyzed: totalRecords,
+                enginesUsed: runEngines,
+                analyticsRecords: analyticsData.length,
+                adsRecords: adsData.length,
+                crmRecords: crmData.length
+              },
+              visualizations: [],
+              recommendations: []
+            });
+            console.log(`[Analysis] Generated report ${report.id}`);
+          } catch (reportError) {
+            console.error(`[Analysis] Failed to generate report for run ${runId}:`, reportError);
+            // Run is still marked as complete even if report generation fails
+          }
+        } catch (error) {
+          console.error(`[Analysis] Error in run ${runId}:`, error);
+          try {
+            await storage.updateAnalysisRun(runId, {
+              status: "failed",
+              completedAt: new Date()
+            });
+          } catch (updateError) {
+            console.error(`[Analysis] Failed to update run ${runId} status:`, updateError);
+          }
+        }
+      });
     } catch (error) {
       console.error("Create analysis run error:", error);
       res.status(500).json({ error: "Failed to create analysis run" });
