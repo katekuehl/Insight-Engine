@@ -31,7 +31,15 @@ psql $DATABASE_URL -f database/schema.sql
 ### 2. Run the Pipeline
 
 ```bash
+pip install fastapi uvicorn
 python main_pipeline.py
+```
+
+OR 
+
+```bash
+pip3 install fastapi uvicorn
+python3 main_pipeline.py
 ```
 
 Expected output:
