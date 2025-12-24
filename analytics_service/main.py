@@ -44,7 +44,11 @@ try:
     from .operators.insight_deck import insight_deck_op
     from .operators.business_results_layer import business_results_layer_op
     from .operators.production_serving_layer import production_serving_layer_op
-except ImportError:
+except ImportError as e:
+    if getattr(e, "name", None) and e.name not in {"operators"}:
+        raise
+    if "attempted relative import" not in str(e) and getattr(e, "name", None) != "operators":
+        raise
     from operators.descriptive_stats import DescriptiveStatsOperator
     from operators.correlation_matrix import CorrelationMatrixOperator
     from operators.trend_detection import TrendDetectionOperator

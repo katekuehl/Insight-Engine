@@ -1,11 +1,13 @@
 import os
 
+from typing import Optional
+
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
-def get_database_url(*, required: bool = True) -> str | None:
+def get_database_url(*, required: bool = True) -> Optional[str]:
     value = os.environ.get("DATABASE_URL")
     if required and not value:
         raise ValueError("DATABASE_URL environment variable not set")
