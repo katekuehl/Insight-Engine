@@ -60,6 +60,8 @@ Optional:
 ANALYTICS_PORT=8000
 RESEND_API_KEY="re_..."  # email sending (welcome/invite/password reset)
 PORT=5000                # Express server port (defaults to 5000)
+VITE_SUPABASE_URL="https://YOUR_PROJECT.supabase.co"
+VITE_SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_KEY"
 ```
 
 ### 2) Initialize the database (pipeline tables)
@@ -157,6 +159,9 @@ ANALYTICS_PORT=8000
 
 - **Resend email** (`RESEND_API_KEY`)
   - If unset, the app will skip sending email in development.
+
+- **Supabase Auth (frontend)** (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`)
+  - Required for authentication flows.
 
 ### Required variables
 
@@ -332,6 +337,10 @@ Your `DATABASE_URL` is missing or points to a database that doesn't exist. Eithe
 ### "Missing API key" from Resend
 
 Set `RESEND_API_KEY` in `.env` if you want email sending. If you don't, you can run dev without it.
+
+### "supabaseUrl is required" (frontend)
+
+Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the repo-root `.env` file, then restart `npm run dev`.
 
 ### "command not found: psql"
 
