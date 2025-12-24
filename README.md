@@ -31,16 +31,70 @@ psql $DATABASE_URL -f database/schema.sql
 ### 2. Run the Pipeline
 
 ```bash
-pip install fastapi uvicorn
+pip install -r requirements.txt
 python main_pipeline.py
 ```
 
 OR 
 
 ```bash
-pip3 install fastapi uvicorn
+pip3 install -r requirements.txt
 python3 main_pipeline.py
 ```
+
+## Analytics Service (FastAPI)
+
+This repo includes a Python FastAPI microservice (`analytics_service/`) used to run analytical operators.
+
+### Run the service (repo root)
+
+```bash
+uvicorn main:app --reload --port 8000
+```
+
+Or:
+
+```bash
+python main.py
+```
+
+### Health check
+
+```bash
+curl http://localhost:8000/health
+```
+
+## Environment Configuration
+
+Environment values are centralized in `config.py`.
+
+### .env support
+
+If you create a `.env` file at the repo root, it will be loaded automatically.
+
+Example `.env`:
+
+```bash
+DATABASE_URL="postgresql://localhost:5432/insight_engine"
+ANALYTICS_PORT=8000
+```
+
+### Required variables
+
+- **`DATABASE_URL`**
+  Used by the data pipeline and analytics operators when connecting to Postgres.
+- **`ANALYTICS_PORT`**
+  Port used when starting the FastAPI service via `python main.py` (defaults to `8000`).
+
+## Python Dependencies
+
+Python dependencies are managed in the root `pyproject.toml`.
+
+- If a deployment workflow requires `analytics_service/requirements.txt`, it delegates to the root project (it installs `-e ..`) so versions do not drift.
+
+## Analytics API Notes
+
+- **`organization_id`** is treated as a **string** across all operator endpoints.
 
 Expected output:
 ```
