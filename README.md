@@ -42,6 +42,54 @@ pip3 install -r requirements.txt
 python3 main_pipeline.py
 ```
 
+## Local Development Setup (Recommended)
+
+### 1) Configure environment variables
+
+Create a `.env` file in the repo root (recommended) or export these in your shell.
+
+Required:
+
+```bash
+DATABASE_URL="postgresql://localhost:5432/insight_engine"
+```
+
+Optional:
+
+```bash
+ANALYTICS_PORT=8000
+RESEND_API_KEY="re_..."  # email sending (welcome/invite/password reset)
+PORT=5000                # Express server port (defaults to 5000)
+```
+
+### 2) Initialize the database (pipeline tables)
+
+```bash
+psql "$DATABASE_URL" -f database/schema.sql
+```
+
+### 3) Install dependencies
+
+Node:
+
+```bash
+npm install
+```
+
+Python:
+
+```bash
+pip3 install -r requirements.txt
+```
+
+### 4) Run the full web app (frontend + backend)
+
+```bash
+npm run dev
+```
+
+Open the URL printed in the terminal (commonly `http://localhost:5000`).
+
 ## Frontend (React + Vite)
 
 The frontend application lives in `client/`.
@@ -72,6 +120,12 @@ This repo includes a Python FastAPI microservice (`analytics_service/`) used to 
 uvicorn main:app --reload --port 8000
 ```
 
+If `uvicorn` is not on your PATH, use:
+
+```bash
+python3 -m uvicorn main:app --reload --port 8000
+```
+
 Or:
 
 ```bash
@@ -98,6 +152,11 @@ Example `.env`:
 DATABASE_URL="postgresql://localhost:5432/insight_engine"
 ANALYTICS_PORT=8000
 ```
+
+### Optional integrations
+
+- **Resend email** (`RESEND_API_KEY`)
+  - If unset, the app will skip sending email in development.
 
 ### Required variables
 
@@ -262,6 +321,26 @@ if result['status'] == 'SUCCESS':
 ```
 
 ## Troubleshooting
+
+### "database \"katekuehl\" does not exist" (Node or psql)
+
+Your `DATABASE_URL` is missing or points to a database that doesn't exist. Either:
+
+- Create the database you want to use (`createdb insight_engine`) and set `DATABASE_URL`, or
+- Point `DATABASE_URL` to an existing database.
+
+### "Missing API key" from Resend
+
+Set `RESEND_API_KEY` in `.env` if you want email sending. If you don't, you can run dev without it.
+
+### "command not found: psql"
+
+Install the PostgreSQL client (macOS via Homebrew):
+
+```bash
+brew install libpq
+brew link --force libpq
+```
 
 ### "DATABASE_URL environment variable not set"
 Set the environment variable:
