@@ -6,10 +6,6 @@ FAIL FAST: If any row fails validation, raise exception immediately.
 import csv
 from datetime import date
 from typing import List
-from pathlib import Path
-
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from schemas.schema_definitions import (
     WebsiteMetricsSchema,

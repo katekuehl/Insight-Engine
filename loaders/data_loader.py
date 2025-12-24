@@ -10,10 +10,6 @@ from typing import List, Dict, Any
 import psycopg2
 from psycopg2.extras import execute_values
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from schemas.schema_definitions import (
     WebsiteMetricsSchema,
     AdsMetricsSchema,
