@@ -22,6 +22,16 @@
 - [ ] Consider raising HTTP status codes (`HTTPException`) instead of always returning `success=False` with 200 in the analytics service.
 - [ ] Consider adding logging (structured logs) for operator execution errors.
 
+## Security
+
+- [ ] Add auth/authz checks to server routes that accept `:orgId` / `:userId` params to prevent IDOR (insecure direct object reference).
+- [ ] Add rate limiting on auth- and invite-related endpoints (register, sync, invite create/accept) to reduce brute force / abuse.
+- [ ] Review request/response logging in `server/index.ts` (currently logs full JSON bodies); redact tokens/secrets/PII before logging.
+- [ ] Add CORS policy explicitly for API routes (restrict origins, methods, headers) rather than relying on defaults.
+- [ ] Consider CSRF protections if using cookie-based sessions for authenticated API calls.
+- [ ] Audit `dangerouslySetInnerHTML` usage (`client/src/components/ui/chart.tsx`); ensure injected values cannot be user-controlled or sanitize inputs.
+- [ ] Ensure secrets are only read from environment variables and never committed (Stripe/Supabase keys); add a pre-commit/CI secret scan.
+
 ## Nice to Have
 
 - [ ] Add a `Makefile` or `justfile` with common commands (install, run service, run pipeline, load schema).
