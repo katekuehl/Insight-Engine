@@ -42,6 +42,26 @@ pip3 install -r requirements.txt
 python3 main_pipeline.py
 ```
 
+## Frontend (React + Vite)
+
+The frontend application lives in `client/`.
+
+### Run the full web app (frontend + backend)
+
+From the repo root:
+
+```bash
+npm install
+npm run dev
+```
+
+This starts:
+
+- The **Express backend** in `server/`
+- The **React frontend** in `client/` (Vite dev server)
+
+Open the URL printed in the terminal (commonly `http://localhost:5000`).
+
 ## Analytics Service (FastAPI)
 
 This repo includes a Python FastAPI microservice (`analytics_service/`) used to run analytical operators.
@@ -90,7 +110,7 @@ ANALYTICS_PORT=8000
 
 Python dependencies are managed in the root `pyproject.toml`.
 
-- If a deployment workflow requires `analytics_service/requirements.txt`, it delegates to the root project (it installs `-e ..`) so versions do not drift.
+- `requirements.txt` and `analytics_service/requirements.txt` exist for pip-based workflows.
 
 ## Analytics API Notes
 
