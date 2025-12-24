@@ -1,3 +1,10 @@
+/**
+ * Email integration (Resend).
+ *
+ * If `RESEND_API_KEY` is not configured, email sends are skipped in development
+ * and the functions return a `{ success: false }` result instead of crashing the
+ * server at import time.
+ */
 import { Resend } from 'resend';
 
 const resendApiKey = process.env.RESEND_API_KEY;

@@ -1,3 +1,14 @@
+/**
+ * Express API routes.
+ *
+ * `registerRoutes` attaches all `/api/*` endpoints to the Express app.
+ * High-level groups:
+ * - Auth + organization/team management
+ * - Data sources/integrations
+ * - Orchestration (DAG execution)
+ * - Analytics/pipeline endpoints
+ * - Billing/Stripe (when configured)
+ */
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";

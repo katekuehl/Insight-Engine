@@ -1,3 +1,14 @@
+/**
+ * Vite integration for development.
+ *
+ * In dev mode we run Vite in "middlewareMode" and attach it to the Express app.
+ * This allows the backend API and the frontend to share the same origin/port.
+ *
+ * `setupVite`:
+ * - Creates the Vite dev server using the repo's Vite config
+ * - Mounts Vite middlewares into Express
+ * - Serves `client/index.html` for all non-API routes
+ */
 import { type Express } from "express";
 import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";

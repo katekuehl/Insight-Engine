@@ -1,3 +1,14 @@
+/**
+ * Express server entrypoint.
+ *
+ * Responsibilities:
+ * - Parse request bodies (JSON + urlencoded).
+ * - Register API routes under `/api/*`.
+ * - In development, mount Vite in middleware mode to serve the React frontend
+ *   from the same server/port.
+ * - In production, serve the built frontend from `server/public`.
+ * - Seed DAG definitions on startup when a database is configured.
+ */
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";

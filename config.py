@@ -1,3 +1,10 @@
+"""Centralized environment/config helpers.
+
+This module:
+- Loads a repo-root `.env` file (via python-dotenv) when present.
+- Provides small helper functions used by both the pipeline and analytics service.
+"""
+
 import os
 
 from typing import Optional
