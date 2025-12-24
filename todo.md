@@ -22,6 +22,19 @@
 - [ ] Consider raising HTTP status codes (`HTTPException`) instead of always returning `success=False` with 200 in the analytics service.
 - [ ] Consider adding logging (structured logs) for operator execution errors.
 
+## Code Quality
+
+- [ ] Reduce broad exception handling in Python (`except Exception`) by catching narrower exceptions where possible and preserving tracebacks.
+- [ ] Replace `print(...)` in the pipeline with a logger and consistent log levels.
+- [ ] Replace server `console.log/console.error` calls with a structured logger and avoid logging full objects by default.
+- [ ] Remove or resolve remaining TODO markers in the client (`client/src/pages/data-sources.tsx`, `client/src/pages/integrations.tsx`).
+- [ ] Reduce TypeScript `any` usage (`server/routes.ts`, `server/orchestration/dag-executor.ts`, `client/src/pages/debug-console.tsx`):
+  - [ ] Introduce shared types/interfaces for API payloads.
+  - [ ] Turn on stricter TS flags where feasible (e.g. `noImplicitAny` is already implied by `strict`, but reduce explicit `any`).
+- [ ] Add a lightweight lint/format pass:
+  - [ ] Python: ruff (or black+isort)
+  - [ ] TS/TSX: eslint + prettier
+
 ## Security
 
 - [ ] Add auth/authz checks to server routes that accept `:orgId` / `:userId` params to prevent IDOR (insecure direct object reference).
