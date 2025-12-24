@@ -35,7 +35,7 @@ class CausalEffectEstimationOperator:
     
     async def execute(
         self,
-        organization_id: int,
+        organization_id: str,
         config: Dict[str, Any],
         upstream_data: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
@@ -196,11 +196,15 @@ class CausalEffectEstimationOperator:
     
     def _generate_synthetic_effects(
         self, 
-        organization_id: int,
+        organization_id: str,
         error: Optional[str] = None
     ) -> Dict[str, Any]:
         """Generate synthetic causal effects for demonstration."""
-        np.random.seed(organization_id % 1000 + 2)
+        try:
+            seed = abs(int(organization_id)) % 1000
+        except (TypeError, ValueError):
+            seed = abs(hash(organization_id)) % 1000
+        np.random.seed(seed + 2)
         
         treatments = [
             "email_campaign_exposure", "discount_offer_received",

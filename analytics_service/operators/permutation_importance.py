@@ -29,7 +29,7 @@ class PermutationImportanceOperator:
     
     async def execute(
         self,
-        organization_id: int,
+        organization_id: str,
         config: Dict[str, Any],
         upstream_data: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
@@ -119,11 +119,15 @@ class PermutationImportanceOperator:
     def _generate_synthetic_importance(
         self, 
         max_features: int, 
-        organization_id: int,
+        organization_id: str,
         error: Optional[str] = None
     ) -> Dict[str, Any]:
         """Generate synthetic permutation importance for demonstration."""
-        np.random.seed(organization_id % 1000 + 1)
+        try:
+            seed = abs(int(organization_id)) % 1000
+        except (TypeError, ValueError):
+            seed = abs(hash(organization_id)) % 1000
+        np.random.seed(seed + 1)
         
         feature_names = [
             "recency_days", "frequency_monthly", "monetary_value",

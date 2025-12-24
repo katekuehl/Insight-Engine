@@ -33,7 +33,7 @@ class XGBoostClassifierOperator:
     
     async def execute(
         self,
-        organization_id: int,
+        organization_id: str,
         config: Dict[str, Any],
         upstream_data: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
@@ -136,8 +136,12 @@ class XGBoostClassifierOperator:
                 return np.array(data["X"]), np.array(data["y"]), data.get("feature_names", [])
         return None, None, []
     
-    def _generate_synthetic_output(self, organization_id: int, error: Optional[str] = None) -> Dict[str, Any]:
-        np.random.seed(organization_id % 1000 + 30)
+    def _generate_synthetic_output(self, organization_id: str, error: Optional[str] = None) -> Dict[str, Any]:
+        try:
+            seed = abs(int(organization_id)) % 1000
+        except (TypeError, ValueError):
+            seed = abs(hash(organization_id)) % 1000
+        np.random.seed(seed + 30)
         
         feature_names = [
             "recency_days", "frequency", "monetary_value", "engagement_score",

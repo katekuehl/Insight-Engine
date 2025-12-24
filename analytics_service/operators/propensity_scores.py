@@ -21,7 +21,7 @@ class PropensityScoresOperator:
     
     async def execute(
         self,
-        organization_id: int,
+        organization_id: str,
         config: Dict[str, Any],
         upstream_data: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
@@ -233,11 +233,15 @@ class PropensityScoresOperator:
     
     def _generate_synthetic_propensity(
         self, 
-        organization_id: int,
+        organization_id: str,
         error: Optional[str] = None
     ) -> Dict[str, Any]:
         """Generate synthetic propensity scores for demonstration."""
-        np.random.seed(organization_id % 1000 + 60)
+        try:
+            seed = abs(int(organization_id)) % 1000
+        except (TypeError, ValueError):
+            seed = abs(hash(organization_id)) % 1000
+        np.random.seed(seed + 60)
         
         n_customers = 1000
         probabilities = np.random.beta(2, 5, n_customers)

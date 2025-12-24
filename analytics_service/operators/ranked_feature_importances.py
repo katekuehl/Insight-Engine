@@ -21,7 +21,7 @@ class RankedFeatureImportancesOperator:
     
     async def execute(
         self,
-        organization_id: int,
+        organization_id: str,
         config: Dict[str, Any],
         upstream_data: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
@@ -246,11 +246,15 @@ class RankedFeatureImportancesOperator:
     
     def _generate_synthetic_ranking(
         self, 
-        organization_id: int,
+        organization_id: str,
         error: Optional[str] = None
     ) -> Dict[str, Any]:
         """Generate synthetic feature ranking for demonstration."""
-        np.random.seed(organization_id % 1000 + 70)
+        try:
+            seed = abs(int(organization_id)) % 1000
+        except (TypeError, ValueError):
+            seed = abs(hash(organization_id)) % 1000
+        np.random.seed(seed + 70)
         
         features = [
             "purchase_frequency", "avg_order_value", "days_since_last_visit",

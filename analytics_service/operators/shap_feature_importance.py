@@ -33,7 +33,7 @@ class ShapFeatureImportanceOperator:
     
     async def execute(
         self,
-        organization_id: int,
+        organization_id: str,
         config: Dict[str, Any],
         upstream_data: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
@@ -120,11 +120,15 @@ class ShapFeatureImportanceOperator:
     def _generate_synthetic_shap(
         self, 
         max_features: int, 
-        organization_id: int,
+        organization_id: str,
         error: Optional[str] = None
     ) -> Dict[str, Any]:
         """Generate synthetic SHAP importance for demonstration."""
-        np.random.seed(organization_id % 1000)
+        try:
+            seed = abs(int(organization_id)) % 1000
+        except (TypeError, ValueError):
+            seed = abs(hash(organization_id)) % 1000
+        np.random.seed(seed)
         
         feature_names = [
             "purchase_frequency", "avg_order_value", "days_since_last_visit",
