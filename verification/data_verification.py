@@ -4,11 +4,12 @@ FAIL FAST: Returns detailed results with all_passed=False if any check fails.
 Uses parameterized queries to prevent SQL injection.
 """
 
-import os
 from datetime import date
 from typing import Dict, Any, Optional
 
 import psycopg2
+
+from config import get_database_url
 
 ALLOWED_TABLES = [
     'pipeline_metrics_website',
@@ -22,10 +23,7 @@ ALLOWED_PLATFORMS = ['google_ads', 'meta_ads']
 
 def get_connection():
     """Get database connection from DATABASE_URL environment variable."""
-    db_url = os.environ.get('DATABASE_URL')
-    if not db_url:
-        raise ValueError("DATABASE_URL environment variable not set")
-    return psycopg2.connect(db_url)
+    return psycopg2.connect(get_database_url())
 
 
 def verify_table(

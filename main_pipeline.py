@@ -19,6 +19,8 @@ import sys
 from datetime import datetime
 from typing import Dict, Any
 
+from config import get_database_url
+
 from connectors.csv_importer import (
     import_ga4_data,
     import_google_ads_data,
@@ -202,7 +204,9 @@ def _build_failed_result(steps: list, start_time: datetime) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    if not os.environ.get('DATABASE_URL'):
+    try:
+        get_database_url()
+    except ValueError:
         print("ERROR: DATABASE_URL environment variable not set")
         sys.exit(1)
     

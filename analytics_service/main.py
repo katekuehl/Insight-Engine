@@ -8,6 +8,8 @@ from pydantic import BaseModel
 from typing import Any, Dict, Optional, List
 import os
 
+from config import get_analytics_port
+
 try:
     from .operators.descriptive_stats import DescriptiveStatsOperator
     from .operators.correlation_matrix import CorrelationMatrixOperator
@@ -428,5 +430,5 @@ async def run_production_serving_layer(request: OperatorRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("ANALYTICS_PORT", "8000"))
+    port = get_analytics_port(8000)
     uvicorn.run(app, host="0.0.0.0", port=port)

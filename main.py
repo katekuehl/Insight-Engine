@@ -6,11 +6,12 @@ service can be started from the repository root.
 
 import os
 
+from config import get_analytics_port
 from analytics_service.main import app
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    port = int(os.environ.get("ANALYTICS_PORT", "8000"))
+    port = get_analytics_port(8000)
     uvicorn.run(app, host="0.0.0.0", port=port)

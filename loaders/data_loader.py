@@ -4,11 +4,12 @@ FAIL FAST: If any insert fails, raise exception immediately.
 Uses psycopg2 for direct database access.
 """
 
-import os
 from typing import List, Dict, Any
 
 import psycopg2
 from psycopg2.extras import execute_values
+
+from config import get_database_url
 
 from schemas.schema_definitions import (
     WebsiteMetricsSchema,
@@ -20,10 +21,7 @@ from schemas.schema_definitions import (
 
 def get_connection():
     """Get database connection from DATABASE_URL environment variable."""
-    db_url = os.environ.get('DATABASE_URL')
-    if not db_url:
-        raise ValueError("DATABASE_URL environment variable not set")
-    return psycopg2.connect(db_url)
+    return psycopg2.connect(get_database_url())
 
 
 def load_website_data(records: List[WebsiteMetricsSchema]) -> Dict[str, Any]:
