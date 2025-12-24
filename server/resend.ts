@@ -1,9 +1,14 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resendApiKey = process.env.RESEND_API_KEY;
+const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
 export async function sendWelcomeEmail(to: string, organizationName: string) {
   try {
+    if (!resend) {
+      console.warn('RESEND_API_KEY not set; skipping welcome email send');
+      return { success: false, error: 'RESEND_API_KEY not set' };
+    }
     await resend.emails.send({
       from: 'Analytics Platform <onboarding@resend.dev>',
       to,
@@ -24,6 +29,10 @@ export async function sendWelcomeEmail(to: string, organizationName: string) {
 
 export async function sendInviteEmail(to: string, inviterEmail: string, organizationName: string, inviteLink: string) {
   try {
+    if (!resend) {
+      console.warn('RESEND_API_KEY not set; skipping invite email send');
+      return { success: false, error: 'RESEND_API_KEY not set' };
+    }
     await resend.emails.send({
       from: 'Analytics Platform <onboarding@resend.dev>',
       to,
@@ -45,6 +54,10 @@ export async function sendInviteEmail(to: string, inviterEmail: string, organiza
 
 export async function sendPasswordResetEmail(to: string, resetLink: string) {
   try {
+    if (!resend) {
+      console.warn('RESEND_API_KEY not set; skipping password reset email send');
+      return { success: false, error: 'RESEND_API_KEY not set' };
+    }
     await resend.emails.send({
       from: 'Analytics Platform <onboarding@resend.dev>',
       to,
