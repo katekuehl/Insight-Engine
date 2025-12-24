@@ -8,39 +8,74 @@ from pydantic import BaseModel
 from typing import Any, Dict, Optional, List
 import os
 
-from operators.descriptive_stats import DescriptiveStatsOperator
-from operators.correlation_matrix import CorrelationMatrixOperator
-from operators.trend_detection import TrendDetectionOperator
-from operators.time_series import TimeSeriesOperator
-from operators.regression_summary import RegressionSummaryOperator
-from operators.decomposition import DecompositionOperator
-from operators.aggregation import AggregationOperator
-from operators.prepare_data import PrepareDataOperator
-from operators.group_comparison import GroupComparisonOperator
-from operators.model_diagnostics import ModelDiagnosticsOperator
-from operators.attribution_modeling import AttributionModelingOperator
-from operators.residual_diagnostics import ResidualDiagnosticsOperator
-from operators.phase2_aggregation import Phase2AggregationOperator
-from operators.arima_forecast import ARIMAForecastOperator
-from operators.prophet_forecast import ProphetForecastOperator
-from operators.lstm_forecast import LSTMForecastOperator
-from operators.exponential_smoothing import ExponentialSmoothingOperator
-from operators.ensemble_aggregation import EnsembleAggregationOperator
-from operators.forecast_outputs import ForecastOutputsOperator
-from operators.shap_feature_importance import shap_feature_importance_op
-from operators.permutation_importance import permutation_importance_op
-from operators.causal_effect_estimation import causal_effect_estimation_op
-from operators.logistic_classifier import logistic_classifier_op
-from operators.random_forest_classifier import random_forest_classifier_op
-from operators.xgboost_classifier import xgboost_classifier_op
-from operators.svm_classifier import svm_classifier_op
-from operators.classification_ensemble import classification_ensemble_op
-from operators.propensity_scores import propensity_scores_op
-from operators.ranked_feature_importances import ranked_feature_importances_op
-from operators.analysis_data_layer import analysis_data_layer_op
-from operators.insight_deck import insight_deck_op
-from operators.business_results_layer import business_results_layer_op
-from operators.production_serving_layer import production_serving_layer_op
+try:
+    from .operators.descriptive_stats import DescriptiveStatsOperator
+    from .operators.correlation_matrix import CorrelationMatrixOperator
+    from .operators.trend_detection import TrendDetectionOperator
+    from .operators.time_series import TimeSeriesOperator
+    from .operators.regression_summary import RegressionSummaryOperator
+    from .operators.decomposition import DecompositionOperator
+    from .operators.aggregation import AggregationOperator
+    from .operators.prepare_data import PrepareDataOperator
+    from .operators.group_comparison import GroupComparisonOperator
+    from .operators.model_diagnostics import ModelDiagnosticsOperator
+    from .operators.attribution_modeling import AttributionModelingOperator
+    from .operators.residual_diagnostics import ResidualDiagnosticsOperator
+    from .operators.phase2_aggregation import Phase2AggregationOperator
+    from .operators.arima_forecast import ARIMAForecastOperator
+    from .operators.prophet_forecast import ProphetForecastOperator
+    from .operators.lstm_forecast import LSTMForecastOperator
+    from .operators.exponential_smoothing import ExponentialSmoothingOperator
+    from .operators.ensemble_aggregation import EnsembleAggregationOperator
+    from .operators.forecast_outputs import ForecastOutputsOperator
+    from .operators.shap_feature_importance import shap_feature_importance_op
+    from .operators.permutation_importance import permutation_importance_op
+    from .operators.causal_effect_estimation import causal_effect_estimation_op
+    from .operators.logistic_classifier import logistic_classifier_op
+    from .operators.random_forest_classifier import random_forest_classifier_op
+    from .operators.xgboost_classifier import xgboost_classifier_op
+    from .operators.svm_classifier import svm_classifier_op
+    from .operators.classification_ensemble import classification_ensemble_op
+    from .operators.propensity_scores import propensity_scores_op
+    from .operators.ranked_feature_importances import ranked_feature_importances_op
+    from .operators.analysis_data_layer import analysis_data_layer_op
+    from .operators.insight_deck import insight_deck_op
+    from .operators.business_results_layer import business_results_layer_op
+    from .operators.production_serving_layer import production_serving_layer_op
+except ImportError:
+    from operators.descriptive_stats import DescriptiveStatsOperator
+    from operators.correlation_matrix import CorrelationMatrixOperator
+    from operators.trend_detection import TrendDetectionOperator
+    from operators.time_series import TimeSeriesOperator
+    from operators.regression_summary import RegressionSummaryOperator
+    from operators.decomposition import DecompositionOperator
+    from operators.aggregation import AggregationOperator
+    from operators.prepare_data import PrepareDataOperator
+    from operators.group_comparison import GroupComparisonOperator
+    from operators.model_diagnostics import ModelDiagnosticsOperator
+    from operators.attribution_modeling import AttributionModelingOperator
+    from operators.residual_diagnostics import ResidualDiagnosticsOperator
+    from operators.phase2_aggregation import Phase2AggregationOperator
+    from operators.arima_forecast import ARIMAForecastOperator
+    from operators.prophet_forecast import ProphetForecastOperator
+    from operators.lstm_forecast import LSTMForecastOperator
+    from operators.exponential_smoothing import ExponentialSmoothingOperator
+    from operators.ensemble_aggregation import EnsembleAggregationOperator
+    from operators.forecast_outputs import ForecastOutputsOperator
+    from operators.shap_feature_importance import shap_feature_importance_op
+    from operators.permutation_importance import permutation_importance_op
+    from operators.causal_effect_estimation import causal_effect_estimation_op
+    from operators.logistic_classifier import logistic_classifier_op
+    from operators.random_forest_classifier import random_forest_classifier_op
+    from operators.xgboost_classifier import xgboost_classifier_op
+    from operators.svm_classifier import svm_classifier_op
+    from operators.classification_ensemble import classification_ensemble_op
+    from operators.propensity_scores import propensity_scores_op
+    from operators.ranked_feature_importances import ranked_feature_importances_op
+    from operators.analysis_data_layer import analysis_data_layer_op
+    from operators.insight_deck import insight_deck_op
+    from operators.business_results_layer import business_results_layer_op
+    from operators.production_serving_layer import production_serving_layer_op
 
 app = FastAPI(
     title="Strata Analytics Service",
