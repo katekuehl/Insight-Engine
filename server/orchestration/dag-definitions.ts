@@ -756,10 +756,20 @@ export const PRODUCTION_SERVING_TASKS: Omit<InsertDagTask, "dagId">[] = [
  * Seed all DAG definitions into the database
  */
 export async function seedDags(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.warn("DATABASE_URL not set; skipping DAG seeding");
+    return;
+  }
   console.log("Seeding DAG definitions...");
   
   // Seed Data Ingestion DAG
-  let dataIngestionDag = await storage.getDagByDagId(DATA_INGESTION_DAG.dagId);
+  let dataIngestionDag;
+  try {
+    dataIngestionDag = await storage.getDagByDagId(DATA_INGESTION_DAG.dagId);
+  } catch (error) {
+    console.warn("Failed to connect to database; skipping DAG seeding");
+    return;
+  }
   if (!dataIngestionDag) {
     dataIngestionDag = await storage.createDag(DATA_INGESTION_DAG);
     console.log(`Created DAG: ${dataIngestionDag.dagId}`);
