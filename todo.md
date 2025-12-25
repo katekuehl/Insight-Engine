@@ -3,12 +3,12 @@
 ## High Priority
 
 - [ ] Fix local Postgres setup so `psql "$DATABASE_URL" -f database/schema.sql` succeeds.
-- [ ] Create a `.env` file at repo root with `DATABASE_URL` and (optionally) `ANALYTICS_PORT`.
+- [x] Create a `.env` file at repo root with `DATABASE_URL` and (optionally) `ANALYTICS_PORT`.
 - [ ] Verify `pip3 install -r requirements.txt` succeeds on your machine (may take a while because of `torch`, `prophet`, etc.).
-- [ ] Choose and standardize the Python runtime version (3.9 vs 3.11+) across docs and tooling:
-  - [ ] Update `pyproject.toml` `requires-python` accordingly
-  - [ ] Ensure `requirements.txt` matches that decision
-  - [ ] Update `TECHNICAL_MEMO.md` / `README.md` references to Python version
+- [x] Choose and standardize the Python runtime version (3.9 vs 3.11+) across docs and tooling:
+  - [x] Update `pyproject.toml` `requires-python` accordingly
+  - [x] Ensure `requirements.txt` matches that decision
+  - [x] Update `TECHNICAL_MEMO.md` / `README.md` references to Python version
 - [ ] Start the FastAPI service and validate:
   - [ ] `python3 -m uvicorn main:app --reload --port 8000`
   - [ ] `GET /health`
@@ -56,6 +56,17 @@
 
 ## Nice to Have
 
-- [ ] Add a `Makefile` or `justfile` with common commands (install, run service, run pipeline, load schema).
+- [x] Add a `Makefile` or `justfile` with common commands (install, run service, run pipeline, load schema).
 - [ ] Add CI workflow to run lint + tests.
-- [ ] Switch to `uv` for speedier dependency installation.
+- [x] Switch to `uv` for speedier dependency installation.
+
+## Frontend Polish (New)
+- [ ] Implement Skeleton loaders for Analytics charts while fetching data.
+- [ ] Add error boundaries to React components to prevent full-page crashes.
+- [ ] Consistent empty states for all tables (like in `data-sources.tsx`).
+- [ ] Add toast notifications for long-running processes (e.g. "Pipeline started...").
+
+## Backend Polish (New)
+- [ ] Structured Logging: Replace `console.log` with a logger (e.g., `winston` or `pino`) for better production debugging.
+- [ ] Request ID Tracking: Middleware to attach a unique ID to every request/log for tracing.
+- [ ] Health Check Endpoint: Standardize `/health` for both Express and FastAPI.

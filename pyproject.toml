@@ -21,3 +21,9 @@ dependencies = [
     "dowhy==0.11.1",
     "imbalanced-learn==0.12.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "ruff>=0.14.10",
+]
