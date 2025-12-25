@@ -81,7 +81,7 @@ npm install
 Python:
 
 ```bash
-pip3 install -r requirements.txt
+uv pip install -r requirements.txt
 ```
 
 ### 4) Run the full web app (frontend + backend)
