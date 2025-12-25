@@ -15,10 +15,10 @@
 
 ## Medium Priority
 
-- [ ] Add a minimal pytest suite:
-  - [ ] Unit tests for `connectors/csv_importer.py` parsing helpers.
-  - [ ] Unit test that `loaders/data_loader.get_connection()` errors when `DATABASE_URL` is missing.
-  - [ ] Smoke test that `analytics_service.main` imports cleanly from repo root.
+- [x] Add a minimal pytest suite:
+  - [x] Unit tests for `connectors/csv_importer.py` parsing helpers.
+  - [x] Unit test that `loaders/data_loader.get_connection()` errors when `DATABASE_URL` is missing.
+  - [x] Smoke test that `analytics_service.main` imports cleanly from repo root.
 
 ## Cleanup / Quality
 
