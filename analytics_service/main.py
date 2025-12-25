@@ -152,6 +152,9 @@ lstm_forecast_op = LSTMForecastOperator()
 exponential_smoothing_op = ExponentialSmoothingOperator()
 ensemble_aggregation_op = EnsembleAggregationOperator()
 forecast_outputs_op = ForecastOutputsOperator()
+@app.get("/")
+async def root():
+    return {"message": "Strata Analytics Service is running", "docs_url": "/docs"}
 
 @app.get("/health")
 async def health_check():
